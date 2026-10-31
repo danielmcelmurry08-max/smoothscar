@@ -159,10 +159,10 @@ export function CheckoutWidget({ value, onChange, onProceed, onApply }: Props) {
           <View style={styles.body}>
             <Text style={styles.heading}>Provider Partner Program</Text>
             <Text style={styles.desc}>
-              For clinics, aesthetic practices, pharmacies and healthcare businesses. Apply once and our team sets up your partner account and wholesale pricing.
+              For clinics, aesthetic practices, pharmacies and healthcare businesses. Apply once and our team will contact you to set up your partner account.
             </Text>
             <View style={styles.partnerList}>
-              {["Wholesale partner pricing", "Peer-reviewed clinical evidence to share", "Dedicated partnerships contact"].map((t) => (
+              {["Exclusive partner terms", "Peer-reviewed clinical evidence to share", "Dedicated partnerships contact"].map((t) => (
                 <View key={t} style={styles.partnerItem}>
                   <CheckCircle size={18} color={colors.brandPrimary} weight="fill" />
                   <Text style={styles.partnerText}>{t}</Text>

@@ -7,7 +7,6 @@ import Animated, { ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { createClinicApplication } from "@/src/api";
-import { formatSGD, PRICING } from "@/src/content";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
 
@@ -137,8 +136,8 @@ export default function ClinicApply() {
               <Handshake size={22} color={colors.onBrandPrimary} weight="bold" />
             </View>
             <View style={styles.flex}>
-              <Text style={styles.introTitle}>{formatSGD(PRICING.clinic.unit)} per box for partners</Text>
-              <Text style={styles.introBody}>vs {formatSGD(PRICING.one_time.unit)} retail · minimum 2 boxes · for clinics & healthcare providers</Text>
+              <Text style={styles.introTitle}>Exclusive partner terms</Text>
+              <Text style={styles.introBody}>Our partnerships team will contact you with pricing and onboarding details after reviewing your application.</Text>
             </View>
           </View>
 

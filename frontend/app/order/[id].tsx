@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getOrder } from "@/src/api";
 import { ReminderCard } from "@/src/components/ReminderCard";
+import { ReferralCard } from "@/src/components/ReferralCard";
 import { CONTACT_EMAIL, formatSGD } from "@/src/content";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -46,6 +47,7 @@ export default function OrderConfirmation() {
     ["Plan", data.plan_name],
     ...(data.interval ? ([["Delivery", data.interval]] as [string, string][]) : []),
     ["Quantity", `${data.quantity} box${data.quantity > 1 ? "es" : ""} × ${formatSGD(data.unit_price)}`],
+    ...(data.discount ? ([[data.discount_label || "Discount", `−${formatSGD(data.discount)}`]] as [string, string][]) : []),
     ["Payment", `${PAY_LABEL[data.payment_method]} (demo)`],
     ["Ship to", `${data.customer.full_name}, ${data.customer.address}, S${data.customer.postal_code}`],
   ];
@@ -78,6 +80,7 @@ export default function OrderConfirmation() {
           </View>
 
           <ReminderCard orderId={data.id} enabled={!!data.reminders_enabled} onEnabled={() => refetch()} />
+          {data.referral_code ? <ReferralCard code={data.referral_code} /> : null}
 
           <View style={styles.help}>
             <EnvelopeSimple size={18} color={colors.brandPrimary} />

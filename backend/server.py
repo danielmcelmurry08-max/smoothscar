@@ -17,7 +17,12 @@ load_dotenv(ROOT_DIR / '.env')
 
 from email_service import ADMIN_EMAIL, clinic_application_email, order_confirmation_email, rate_limited, send_email  # noqa: E402
 from push_service import register_device, reminder_loop, reminders_started_now, safe_push  # noqa: E402
+from email_service import referral_reward_email  # noqa: E402
+from referrals import apply_code, ensure_referral_code, preview_code, record_referral, referral_status, release_claim, release_reward  # noqa: E402
 import asyncio  # noqa: E402
+import secrets  # noqa: E402
+
+ADMIN_PASSCODE = os.environ["ADMIN_PASSCODE"]
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = client[os.environ['DB_NAME']]
@@ -74,6 +79,7 @@ class OrderCreate(BaseModel):
     quantity: int = Field(ge=1, le=100)
     payment_method: Literal["apple_pay", "google_pay", "card"]
     customer: Customer
+    code: Optional[str] = Field(default=None, max_length=20)
 
 
 class Order(BaseDocument):
@@ -85,6 +91,10 @@ class Order(BaseDocument):
     unit_price: int
     subtotal: int
     shipping: int
+    discount: int = 0
+    discount_label: Optional[str] = None
+    applied_code: Optional[str] = None
+    referral_code: Optional[str] = None
     total: int
     currency: str = "SGD"
     payment_method: str
@@ -149,6 +159,11 @@ async def create_order(payload: OrderCreate, request: Request, background: Backg
     unit_price = plan.get("bundle_price", plan["unit_price"]) if payload.quantity >= 2 else plan["unit_price"]
     subtotal = unit_price * payload.quantity
     shipping = 0
+    customer_key = email_key(payload.customer.email)
+    applied, kind, discount, discount_label = None, None, 0, None
+    if payload.code and payload.code.strip():
+        applied, kind, discount, _ = await apply_code(db, payload.code, customer_key, unit_price, subtotal)
+        discount_label = "Referral discount" if kind == "referral" else "Reward: 1 free box"
     now = datetime.now(timezone.utc)
     counter = await db.counters.find_one_and_update(
         {"_id": "orders"}, {"$inc": {"seq": 1}}, upsert=True, return_document=ReturnDocument.AFTER
@@ -162,16 +177,69 @@ async def create_order(payload: OrderCreate, request: Request, background: Backg
         unit_price=unit_price,
         subtotal=subtotal,
         shipping=shipping,
-        total=subtotal + shipping,
+        discount=discount,
+        discount_label=discount_label,
+        applied_code=applied,
+        total=subtotal + shipping - discount,
         payment_method=payload.payment_method,
         customer=payload.customer,
         created_at=now.isoformat(),
     )
-    res = await db.orders.insert_one(order.to_mongo())
+    try:
+        res = await db.orders.insert_one({**order.to_mongo(), "email_key": customer_key})
+    except Exception:
+        if kind == "reward":
+            await release_reward(db, applied)
+        if kind == "referral":
+            await release_claim(db, customer_key)
+        raise
     order.id = str(res.inserted_id)
+    order.referral_code = await ensure_referral_code(db, customer_key, payload.customer.email, order.id)
+    await db.orders.update_one({"_id": res.inserted_id}, {"$set": {"referral_code": order.referral_code}})
+    if kind == "referral":
+        reward = await record_referral(db, applied, order.id)
+        if reward:
+            background.add_task(notify_reward, reward)
     subject, html = order_confirmation_email(order)
     background.add_task(send_and_record, "orders", order.id, to=order.customer.email, subject=subject, html=html)
     return order
+
+
+async def notify_reward(reward: dict):
+    subject, html = referral_reward_email(reward["reward_code"])
+    await send_email(to=reward["owner_email"], subject=subject, html=html)
+    owner_order = await db.orders.find_one({"email_key": reward["owner_key"], "push_user_id": {"$exists": True}}, sort=[("_id", -1)])
+    if owner_order:
+        await safe_push([owner_order["push_user_id"]], {
+            "title": "You earned a free box!",
+            "message": f"3 friends bought BioRNA with your code. Use {reward['reward_code']} for a free box.",
+            "action_url": "/",
+        }, idempotency_key=f"reward-{reward['reward_code']}")
+
+
+@api_router.get("/codes/{code}")
+async def check_code(code: str, request: Request):
+    if rate_limited(f"code-check:{client_ip(request)}", 30):
+        raise HTTPException(429, "Too many attempts. Please try again later.")
+    return await preview_code(db, code)
+
+
+@api_router.get("/referrals/{code}")
+async def get_referral(code: str):
+    return await referral_status(db, code)
+
+
+@api_router.get("/admin/clinic-applications")
+async def admin_applications(request: Request):
+    ip = client_ip(request)
+    supplied = request.headers.get("x-admin-passcode", "")
+    if not secrets.compare_digest(supplied.encode(), ADMIN_PASSCODE.encode()):
+        if rate_limited(f"admin-fail:{ip}", 10):
+            raise HTTPException(429, "Too many attempts. Please try again later.")
+        raise HTTPException(401, "Incorrect passcode")
+    docs = await db.clinic_applications.find({}).sort("_id", -1).limit(200).to_list(200)
+    fields = list(ClinicApplicationCreate.model_fields) + ["status", "created_at", "email_status"]
+    return [{"id": str(d["_id"]), **{f: d.get(f) for f in fields}} for d in docs]
 
 
 class ClinicApplicationCreate(BaseModel):
@@ -281,6 +349,13 @@ async def ensure_indexes():
     if not await db.counters.find_one({"_id": "orders"}):
         await db.counters.insert_one({"_id": "orders", "seq": await db.orders.count_documents({})})
     await db.orders.create_index("order_number", unique=True)
+    await db.orders.create_index("email_key")
+    async for o in db.orders.find({"email_key": {"$exists": False}}, {"customer.email": 1}):
+        await db.orders.update_one({"_id": o["_id"]}, {"$set": {"email_key": email_key(o["customer"]["email"])}})
+    await db.referrals.create_index("code", unique=True)
+    await db.referrals.create_index("owner_key", unique=True)
+    await db.reward_codes.create_index("code", unique=True)
+    await db.referral_claims.create_index("customer_key", unique=True)
     asyncio.create_task(reminder_loop(db))
 
 

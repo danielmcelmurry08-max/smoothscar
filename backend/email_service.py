@@ -206,6 +206,14 @@ def order_confirmation_email(order) -> tuple[str, str]:
     ]
     if c.clinic_name:
         rows.insert(1, ("Clinic", c.clinic_name))
+    if order.discount:
+        rows.append((order.discount_label or "Discount", f"−${order.discount:,}"))
+    share = (
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:20px;border:1px dashed {BRAND};border-radius:12px">'
+        f'<tr><td style="padding:16px;font-size:14px;line-height:21px;color:{INK}"><strong>Give $25, get a free box.</strong> '
+        f'Share your code <strong style="color:{BRAND};letter-spacing:1px">{escape(order.referral_code)}</strong> — friends get $25 off their first order, '
+        f'and you get a free box for every 3 friends who buy.</td></tr></table>'
+    ) if order.referral_code else ""
     inner = (
         f'<p style="margin:0">Hi {escape(c.full_name.split(" ")[0])}, thank you for your order. '
         f'We&rsquo;re preparing your BioRNA-C Micro-Tips Patches for dispatch within 1–2 working days.</p>'
@@ -213,11 +221,23 @@ def order_confirmation_email(order) -> tuple[str, str]:
         f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#E5F0FA;border-radius:12px">'
         f'<tr><td style="padding:16px;font-size:15px;font-weight:700;color:{BRAND}">Total</td>'
         f'<td style="padding:16px;text-align:right;font-size:20px;font-weight:900;color:{INK}">${order.total:,}</td></tr></table>'
+        f'{share}'
         f'<p style="margin:20px 0 0;font-size:14px;color:{MUTED}"><strong style="color:{INK}">How to use (best before bed):</strong> clean and dry the skin, '
         f'apply the patch on the scar and press gently for 30 seconds. Leave on for 8–12 hours, then replace daily until satisfied. '
         f'Do not use on open wounds.</p>'
     )
     return f"Your {EMAIL_FROM_NAME} order {order.order_number} is confirmed", _shell("Order confirmed", inner)
+
+
+def referral_reward_email(reward_code: str) -> tuple[str, str]:
+    inner = (
+        f'<p style="margin:0">Three friends have bought BioRNA Antiscar with your referral code. Thank you for sharing!</p>'
+        f'<p style="margin:16px 0 0">Here is your code for <strong>1 free box</strong> — enter it at checkout on your next order:</p>'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background:#E5F0FA;border-radius:12px">'
+        f'<tr><td align="center" style="padding:20px;font-size:26px;font-weight:900;letter-spacing:3px;color:{BRAND}">{escape(reward_code)}</td></tr></table>'
+        f'<p style="margin:16px 0 0;font-size:14px;color:{MUTED}">Keep sharing your referral code — every 3 friends earns another free box.</p>'
+    )
+    return f"You earned a free box of {EMAIL_FROM_NAME}", _shell("You earned a free box", inner)
 
 
 def clinic_application_email(app) -> tuple[str, str]:

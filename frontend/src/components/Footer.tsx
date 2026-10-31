@@ -5,7 +5,7 @@ import { CONTACT_EMAIL, DISCLAIMER } from "../content";
 import { fonts, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
 
-type Props = { onNavigate: (key: "evidence" | "buy" | "info") => void; onApply: () => void; bottomPad: number };
+type Props = { onNavigate: (key: "evidence" | "buy" | "info") => void; onApply: () => void; onAdmin: () => void; bottomPad: number };
 
 const LINKS: { key: "evidence" | "buy" | "info"; label: string }[] = [
   { key: "evidence", label: "Clinical Evidence" },
@@ -13,7 +13,7 @@ const LINKS: { key: "evidence" | "buy" | "info"; label: string }[] = [
   { key: "info", label: "How It Works" },
 ];
 
-export function Footer({ onNavigate, onApply, bottomPad }: Props) {
+export function Footer({ onNavigate, onApply, onAdmin, bottomPad }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
@@ -38,6 +38,9 @@ export function Footer({ onNavigate, onApply, bottomPad }: Props) {
       </Pressable>
       <Text style={styles.disclaimer} testID="footer-disclaimer">{DISCLAIMER}</Text>
       <Text style={styles.copy}>© {new Date().getFullYear()} BioRNA Pte. Ltd. · Singapore</Text>
+      <Pressable onPress={onAdmin} testID="footer-admin-link" style={styles.link}>
+        <Text style={styles.adminText}>Team login</Text>
+      </Pressable>
     </View>
   );
 }
@@ -54,4 +57,5 @@ const useStyles = makeStyles((c) => ({
   emailText: { fontFamily: fonts.medium, fontSize: 15, color: c.onSurfaceInverse, textDecorationLine: "underline" },
   disclaimer: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: c.muted, marginTop: space.xl },
   copy: { fontFamily: fonts.regular, fontSize: 12, color: c.muted, marginTop: space.lg },
+  adminText: { fontFamily: fonts.medium, fontSize: 12, color: c.muted, textDecorationLine: "underline" },
 }));

@@ -6,7 +6,8 @@ import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "r
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { createOrder } from "@/src/api";
+import { createOrder, CodePreview } from "@/src/api";
+import { PromoCodeField } from "@/src/components/PromoCodeField";
 import { CLINIC_TIERS, formatSGD, PlanId, PRICING, SUB_TIERS, unitPriceFor } from "@/src/content";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -27,7 +28,7 @@ export default function Checkout() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ plan?: string; qty?: string }>();
+  const params = useLocalSearchParams<{ plan?: string; qty?: string; code?: string }>();
   const initialPlan: PlanId = params.plan === "subscribe" ? "subscribe" : "one_time";
   const [plan] = useState<PlanId>(initialPlan);
   const [qty, setQty] = useState(() => {
@@ -45,7 +46,10 @@ export default function Checkout() {
 
   const unit = unitPriceFor(plan, qty);
   const tiers = TIERS[plan];
-  const total = unit * qty;
+  const [promo, setPromo] = useState<CodePreview | null>(null);
+  const subtotal = unit * qty;
+  const discount = promo ? Math.min(promo.kind === "referral" ? 25 : unit, subtotal) : 0;
+  const total = subtotal - discount;
 
   const fields: { key: FieldKey; label: string; placeholder: string; keyboard?: "email-address" | "phone-pad" | "number-pad"; auto?: any }[] = [
     ...(plan === "clinic" ? [{ key: "clinic_name" as FieldKey, label: "Clinic / provider name", placeholder: "e.g. Orchard Aesthetics Clinic" }] : []),
@@ -77,6 +81,7 @@ export default function Checkout() {
         plan,
         quantity: qty,
         payment_method: pay,
+        code: promo?.code ?? null,
         customer: {
           full_name: form.full_name.trim(),
           email: form.email.trim(),
@@ -149,11 +154,20 @@ export default function Checkout() {
               <Text style={styles.lineLabel}>Shipping (Singapore)</Text>
               <Text style={styles.lineValue}>Free</Text>
             </View>
+            {discount ? (
+              <View style={styles.line} testID="discount-line">
+                <Text style={styles.lineLabel}>{promo?.kind === "referral" ? "Referral discount" : "Reward: 1 free box"}</Text>
+                <Text style={styles.lineValue}>−{formatSGD(discount)}</Text>
+              </View>
+            ) : null}
             <View style={[styles.line, styles.totalLine]}>
               <Text style={styles.totalLabel}>Total{plan === "subscribe" ? " · every 2 weeks" : ""}</Text>
               <Text style={styles.totalValue} testID="checkout-total">{formatSGD(total)}</Text>
             </View>
           </View>
+
+          <Text style={styles.sectionTitle}>Have a code?</Text>
+          <PromoCodeField initialCode={params.code} applied={promo} onApplied={setPromo} />
 
           <Text style={styles.sectionTitle}>Express checkout</Text>
           <View style={styles.payRow} role="radiogroup">

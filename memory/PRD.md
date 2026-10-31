@@ -45,3 +45,14 @@ Premium medical-cosmetic D2C single-product landing page (mobile web first) for 
 - P0: google-services.json from Firebase (package com.emergent.biornacscar.bqs75v); a working inbox instead of info@smoothscar.com
 - P1: Real payments; admin view of orders and applications
 - P2: Hero photo of a real user, scar progress diary
+
+## Iteration 4 (2026-06)
+- Referral program (`backend/referrals.py`):
+  - Every customer gets a BIOxxxxxx code. Friends get $25 off their first order (one claim per email key, atomic). Customers can't use their own code.
+  - Every 3 friends who buy earn the referrer a single-use FREExxxxxx code for 1 free box, sent by email and push.
+  - Endpoints: `/api/codes/{code}` (preview), `/api/referrals/{code}` (progress)
+  - Checkout: code field, pre-filled and applied automatically from `?code=`. The landing banner shows only for valid codes.
+  - Confirmation page: share card with progress toward the next free box
+- Team admin screen `/admin` (passcode ADMIN_PASSCODE in backend .env; see test_credentials.md) lists provider applications, because info@smoothscar.com bounces.
+- Testing: iteration 4 passed 9/9 new backend tests and every frontend flow. Fixes made afterwards: auto-apply of `?code=`, banner shows only for valid codes, honest "copied" state, duplicate-key and parallel-claim race fixes, admin email chip no longer cut off. Re-checked so far: the parallel-claim curl test (passed) and the reminder unit tests (7/7). The auto-apply screenshot check was still running when this was written. 10 older tests from iterations 1–3 are stale after the pricing and form changes and still need updating.
+- Pending from the user: google-services.json (Android push)

@@ -1,0 +1,47 @@
+{
+  "summary": "Iteration 4 tested the referral program (BIO codes, $25 friend discount, FREE reward code after 3 friends), the code preview and its rate limit, the admin clinic-applications API, and the frontend for promo codes, the ?code landing banner, the referral card, /admin, and the order confirmation (390x844). Backend: all 9 new tests pass. That covers: code issued per order and reused for the same email key (dots and +alias collapse), own code rejected (400), preview kinds and 404s, friend discount of 25 (total = subtotal - 25), repeat customer rejected (400), unknown code rejected (400), successful_count 3 and rewards_earned 1 after 3 friends with a FREE code in db.reward_codes, FREE code discount = unit_price (275 on qty 2), FREE code reuse rejected (400), admin 401 without or with a wrong passcode and 200 with the correct one, and the code preview returning 429 within 31 calls. The reward email was delivered (log 'Email sent (You earned a free box...)'). Push returns the expected placeholder 500/401. Frontend: every requested flow works. Prefill, invalid code -> promo-error, apply -> promo-applied plus discount-line ($550 -> $525), remove, and placing an order with the code all work. The confirmation shows the referral card with code, 0/3 progress and a share button that copies on web, and the reminder card still renders. footer-admin-link -> wrong passcode shows 'Incorrect passcode'; the correct passcode shows 3 applications with cards; logout works. A repeat customer submitting a referral code sees checkout-submit-error. Main problems: (1) the landing banner says the code 'is applied at checkout', but checkout only pre-fills it. A user who does not tap Apply pays full price. (2) The banner is shown for any ?code value without checking it, and it appears below the fold, behind the sticky CTA. Ten legacy regression tests from iterations 1–3 now fail because they are out of date (new pricing, credentials now required, clinic plan removed, shared delivered@ email key hitting the 5/hour limit). These are not product regressions. No deprecated Expo packages found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/orders (referral)", "issue": "The first-order check (count_documents on email_key) is separate from the order insert, so it is not atomic. Parallel first orders from the same friend could each get $25 and each credit the referrer, which lets someone farm rewards with fewer than 3 distinct friends. Not reproduced in a sequential-ish probe. Reference: referrals.py:70, server.py:197"},
+      {"endpoint": "POST /api/orders (ensure_referral_code)", "issue": "Two concurrent first orders for a new customer: the second insert hits the owner_key unique index, the bare except treats it as a code clash and retries with a new code, all 5 retries fail on owner_key, and the result is a 500 after the order was already inserted. Catch DuplicateKeyError and re-read by owner_key. Reference: referrals.py:29-38"},
+      {"endpoint": "POST /api/orders (reward)", "issue": "If ensure_referral_code or record_referral raises after the order insert, the FREE code stays used even though the client gets a 500. Reference: server.py:188-196"},
+      {"endpoint": "GET /api/codes/{code}", "issue": "The preview does not check the customer email, so self-referral and repeat-customer cases only fail at submit (the UI shows the discount and then rejects it). Acceptable, but consider passing the email so the failure shows earlier."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Landing referral banner -> checkout", "issue": "The banner text says 'code X is applied at checkout', but checkout only pre-fills promo-code-input (promo-applied count 0, total $550 until the user taps Apply). Auto-apply the code on mount (call checkCode with initialCode), or change the copy.", "testID": "referral-banner / promo-code-input", "priority": "MEDIUM"},
+      {"component": "Landing referral banner", "issue": "The banner is shown for any ?code value with no validation. ?code=FREEABC123 (an invalid reward code) still says 'A friend sent you $25 off'. Validate with GET /api/codes first and adjust the copy for kind=reward.", "testID": "referral-banner", "priority": "LOW"},
+      {"component": "ReferralCard share (web)", "issue": "The clipboard writeText error is swallowed but setCopied(true) still runs, so the button shows 'Copied' even when copying failed. Reference: src/components/ReferralCard.tsx:31-32", "testID": "referral-share-button", "priority": "LOW"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing (390x844)", "issues": ["referral-banner sits at y=772, below the hero and behind the sticky Order Now bar (top ~733), so the user does not see the referral offer on first load. Move it above the hero or into the sticky bar."]},
+      {"screen": "/admin applications", "issues": ["The email chip is half-width and truncates addresses ('delivered@res...'). Stack the email and phone chips, or let the email span the full width."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_referrals_admin.py", "/app/backend/tests/race_referral_check.py", "/app/test_reports/pytest/pytest_referrals.xml", "/app/test_reports/pytest/pytest_results.xml"],
+  "action_items": [
+    "Checkout: auto-apply the ?code param (run checkCode on mount when initialCode is set), or change the landing banner copy, which currently claims the code is already applied.",
+    "Landing: validate ?code before showing the referral-banner, and move the banner above the fold so the sticky CTA does not hide it.",
+    "referrals.ensure_referral_code: catch DuplicateKeyError on owner_key and return the existing code instead of retrying and returning a 500.",
+    "Make the referral first-order check atomic (for example a unique 'first_order' marker per email_key, or a find_one_and_update guard) so concurrent orders cannot each get the discount and double-credit the referrer.",
+    "ReferralCard: only set copied=true when clipboard.writeText resolves.",
+    "Update the stale legacy tests: test_orders.py (bundle price 275, no clinic plan, use distinct example.com emails), test_clinic_and_email.py (credentials is now required), and test_push_due_reminders.py (needs EMERGENT_PUSH_KEY in the environment at import)."
+  ],
+  "critical_code_review_comments": [
+    "Reward codes are not tied to owner_key, so anyone holding a FREE code can redeem it. That is fine if it is meant to be giftable; otherwise check owner_key in apply_code.",
+    "Checkout's client-side discount math (25 or unit) duplicates server logic. It is fine because the server is authoritative, but keep the two in sync.",
+    "Rate limits are in-memory, so they reset on restart and are not shared across workers.",
+    "The share link uses EXPO_PUBLIC_SITE_URL=https://smoothscar.com. Make sure the production domain serves this app with ?code support."
+  ],
+  "updated_files": ["/app/backend/tests/test_referrals_admin.py (new)", "/app/backend/tests/race_referral_check.py (new probe)"],
+  "success_rate": {"backend": "100% of new referral/admin tests (9/9); legacy suite 57/67 with 10 stale-test failures plus 1 collection error", "frontend": "100% of requested flows (2 UX issues)"},
+  "seed_data_creation": "None kept. All testref*/testfriend*/testrace*/testui* orders and referrals were deleted. One pre-existing used reward code (FREEQ6PNRT, from the main agent's own run) was left in place. The backend was restarted to clear in-memory rate limits.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin passcode is in /app/memory/test_credentials.md. Use distinct <x>@example.com emails per friend (Resend blocks example.com with a 422, which is expected). Order rate limit is 20/IP/hour and code preview is 30/IP/hour, both in-memory; restart the backend to reset them. test_code_preview_rate_limit exhausts the code-check limit, so restart the backend before UI tests.",
+  "rca_of_issue": "Banner vs checkout: index.tsx passes code as a route param, but checkout.tsx:170 only sets PromoCodeField initialCode (the input value). Nothing calls checkCode on mount, so promo stays null and the discount is 0 until the user taps Apply."
+}

@@ -1,0 +1,140 @@
+{
+  "app_name": "BioRNA Antiscar",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "Clinical white and clean aesthetics layered with deep human trust, delivering premium medical-cosmetic D2C value.",
+  "color": {
+    "surface": "#FFFFFF",
+    "onSurface": "#1C1C1E",
+    "surfaceSecondary": "#F5F5F7",
+    "onSurfaceSecondary": "#1C1C1E",
+    "surfaceTertiary": "#EAEAEA",
+    "onSurfaceTertiary": "#1C1C1E",
+    "surfaceInverse": "#1C1C1E",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#004B87",
+    "brandPrimary": "#004B87",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#003B6D",
+    "onBrandSecondary": "#FFFFFF",
+    "brandTertiary": "#E5F0FA",
+    "onBrandTertiary": "#004B87",
+    "success": "#34C759",
+    "onSuccess": "#FFFFFF",
+    "warning": "#FF9500",
+    "onWarning": "#FFFFFF",
+    "error": "#FF3B30",
+    "onError": "#FFFFFF",
+    "info": "#007AFF",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E5EA",
+    "borderStrong": "#D1D1D6",
+    "muted": "#8E8E93",
+    "onBrand": "#FFFFFF"
+  },
+  "typography": {
+    "displayFontFamily": "Satoshi",
+    "textFontFamily": "Satoshi",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Generous vertical breathing room for a premium feel. Use md for inner padding and lg/xl for outer container margins to keep content readable and clinical.",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "stack_only",
+  "icon_set": "Phosphor",
+  "glassmorphism": {
+    "enabled": "true",
+    "do's": [
+      "Use glass overlay on the sticky bottom CTA container over scrolling content.",
+      "Use glass on header when scrolling."
+    ],
+    "dont's": [
+      "Do not use blur on body cards or text areas to maintain clinical readability."
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "LandingPage",
+      "purpose": "A high-converting single-product D2C landing page that establishes clinical trust and emotional connection.",
+      "states": {
+        "loading": "Centered spinner with clinical white background.",
+        "empty": "N/A for landing page.",
+        "error": "Error loading product data. Tap to retry."
+      },
+      "layout": "1. Hero: Full width background image (confident mother) with top-to-bottom gradient scrim. Headline and subheadline anchored in bottom 40%. Sticky primary CTA fixed at bottom root with glass background. 2. Agitation Cards: 3 full-width single-column cards (surfaceSecondary) stacked vertically with md gap. 3. Clinical Evidence: Grid/Flex row highlighting big stats (95%, 88%) with journal citation below, followed by an interactive Before/After image slider using PanGesture/ScrollView. 4. Checkout Widget: Tiered tab view (Subscribe vs Clinic) to select pricing option and 'Proceed to Secure Checkout' button. 5. Accordions: Standard collapsible sections for FAQs. 6. Footer: Clean links and clinical disclaimers."
+    },
+    {
+      "name": "Checkout",
+      "purpose": "Secure mock checkout flow saving the order.",
+      "states": {
+        "loading": "Spinner during payment processing.",
+        "empty": "N/A",
+        "error": "Payment failed overlay."
+      },
+      "layout": "Standard single-column form. Order summary at top, shipping details inputs, mock Apple/Google Pay buttons. 'Place Order' CTA fixed at bottom inside KeyboardAvoidingView."
+    }
+  ],
+  "images": {
+    "hero_mother": {
+      "url": "https://images.unsplash.com/photo-1570657891791-e39a9d185540?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1OTV8MHwxfHNlYXJjaHwxfHxjb25maWRlbnQlMjBtb3RoZXIlMjBzbWlsaW5nJTIwbmF0dXJhbCUyMGxpZ2h0aW5nfGVufDB8fHx8MTc5MzQyNDY2MXww&ixlib=rb-4.1.0&q=85",
+      "alt": "Confident mother smiling naturally"
+    },
+    "product_patch": {
+      "url": "https://images.unsplash.com/photo-1670201203150-bf8771401590?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwxfHxza2luY2FyZSUyMGNvc21ldGljJTIwcGF0Y2h8ZW58MHx8fHwxNzkzNDI0NjYxfDA&ixlib=rb-4.1.0&q=85",
+      "alt": "Skincare cosmetic patch on face"
+    },
+    "before_scar": {
+      "url": "https://images.unsplash.com/photo-1541752857837-f8a0154fd092?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODd8MHwxfHNlYXJjaHwxfHxza2luJTIwd2l0aCUyMHNjYXIlMjB0ZXh0dXJlJTIwY2xvc2UlMjB1cHxlbnwwfHx8fDE3OTM0MjQ2Nzd8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Close up of skin with scar texture"
+    },
+    "after_smooth": {
+      "url": "https://images.unsplash.com/photo-1723540634462-528708cc17aa?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA4Mzl8MHwxfHNlYXJjaHwxfHxoZWFsZWQlMjBzbW9vdGglMjBza2luJTIwdGV4dHVyZXxlbnwwfHx8fDE3OTM0MjQ2NjF8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Healed smooth skin texture"
+    }
+  },
+  "haptics": {
+    "cta_press": "impactLight",
+    "tab_switch": "selection",
+    "slider_drag_end": "impactMedium",
+    "accordion_toggle": "impactLight"
+  },
+  "instructions_to_main_agent": [
+    "Design follows '1 iOS-Native Clean' with a clinical, modern medical vibe (surface #FFFFFF, onSurface #1C1C1E, brand #004B87). No other blues or purples permitted.",
+    "Implement a sticky primary CTA ('Order Now — Try BioRNA-C') inside a fixed container at the root of the LandingPage screen, ensuring it stays visible over scrolling content and accounts for safe areas.",
+    "For the hero image, apply a mandatory top-to-bottom linear gradient scrim (transparent to surfaceInverse) so text overlays cleanly.",
+    "Build the Before/After interactive comparison using a draggable slider layout or side-by-side horizontal scroll for mobile simplicity.",
+    "Ensure 'big numbers' in the Clinical Evidence section utilize the 2xl text sizes (Satoshi 500 max weight) for maximum visual impact.",
+    "Use Phosphor icons. Keep borders minimal (0.5pt to 1pt max) to maintain the clean medical aesthetic."
+  ]
+}

@@ -1,15 +1,16 @@
 import * as Haptics from "expo-haptics";
-import { CaretDown, GraduationCap, Flask, Buildings } from "phosphor-react-native";
+import { Image } from "expo-image";
+import { CaretDown, GraduationCap, Flask, Dna } from "phosphor-react-native";
 import { useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 
-import { ACCORDIONS, TRUST } from "../content";
+import { ACCORDIONS, IMAGES, TRUST, TRUST_LOGOS } from "../content";
 import { fonts, radius, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
 import { SectionHeader } from "./SectionHeader";
 
-const TRUST_ICONS = [GraduationCap, Buildings, Flask];
+const TRUST_ICONS = [GraduationCap, Flask, Dna];
 
 export function TrustInfo() {
   const styles = useStyles();
@@ -19,7 +20,14 @@ export function TrustInfo() {
   return (
     <View style={styles.section}>
       <View role="region" aria-label="Scientific trust" testID="trust-section">
-        <Text style={styles.trustLabel}>Incubated & supported by</Text>
+        <Text style={styles.trustLabel}>Spin-off from & incubated by</Text>
+        <View style={styles.logoImgs}>
+          {TRUST_LOGOS.map((l) => (
+            <View key={l.id} style={styles.logoImgWrap} testID={`trust-logo-${l.id}`}>
+              <Image source={l.source} style={styles.logoImg} contentFit="contain" accessibilityLabel={l.label} />
+            </View>
+          ))}
+        </View>
         <View style={styles.logos}>
           {TRUST.map((t, i) => {
             const Icon = TRUST_ICONS[i];
@@ -31,6 +39,15 @@ export function TrustInfo() {
               </View>
             );
           })}
+        </View>
+        <Text style={[styles.trustLabel, styles.awardsLabel]}>Awards & features</Text>
+        <View style={styles.awardsWrap} testID="awards-image">
+          <Image
+            source={IMAGES.awards}
+            style={styles.awards}
+            contentFit="cover"
+            accessibilityLabel="Awards and features: Lianhe Zaobao, Cosmetics Design Asia, Techathon 2025, The Straits Times, Daily Vanity, British Journal of Dermatology, Beauty Insider Editors' Choice 2025, Singapore Health & Biomedical Congress"
+          />
         </View>
       </View>
 
@@ -81,6 +98,12 @@ const useStyles = makeStyles((c) => ({
     marginBottom: space.lg,
   },
   logos: { flexDirection: "row", gap: space.sm },
+  logoImgs: { flexDirection: "row", gap: space.sm, marginBottom: space.sm },
+  logoImgWrap: { flex: 1, height: 72, borderRadius: radius.md, overflow: "hidden", backgroundColor: c.surfaceSecondary },
+  logoImg: { width: "100%", height: "100%" },
+  awardsLabel: { marginTop: space.xxl },
+  awardsWrap: { width: "100%", aspectRatio: 900 / 438, borderRadius: radius.lg, overflow: "hidden", backgroundColor: c.surfaceInverse },
+  awards: { width: "100%", height: "100%" },
   logo: {
     flex: 1,
     alignItems: "center",

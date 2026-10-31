@@ -16,7 +16,7 @@ export function Hero() {
   return (
     <View role="banner" style={styles.wrap} testID="hero-section">
       <View style={styles.imageWrap} role="img" aria-label="Confident mother after C-section recovery">
-        <Image source={{ uri: IMAGES.heroMother }} style={styles.image} contentFit="cover" transition={300} accessibilityLabel="Confident mother smiling" />
+        <Image source={IMAGES.heroMother} style={styles.image} contentFit="cover" transition={300} accessibilityLabel="Confident mother smiling" />
         <LinearGradient colors={[colors.scrimClear, colors.scrimClear, colors.scrim]} locations={[0, 0.35, 1]} style={styles.scrim} />
         <View style={[styles.topBar, { paddingTop: insets.top + space.md }]}>
           <Text style={styles.logo} testID="brand-logo">
@@ -38,12 +38,12 @@ export function Hero() {
       <Animated.View entering={FadeInDown.duration(600).delay(250)} style={styles.below}>
         <View style={styles.productCard} testID="hero-product-card">
           <View style={styles.productImgWrap} role="img" aria-label="BioRNA Micro-Tips Patch">
-            <Image source={{ uri: IMAGES.productPatch }} style={styles.productImg} contentFit="cover" accessibilityLabel="BioRNA Micro-Tips Patch" />
+            <Image source={IMAGES.productBox} style={styles.productImg} contentFit="cover" accessibilityLabel="BioRNA Antiscar box — patch with dissolvable micro-tips" />
           </View>
           <View style={styles.productInfo}>
             <Text style={styles.productKicker}>BioRNA-C</Text>
             <Text style={styles.productName}>Micro-Tips Scar Patch</Text>
-            <Text style={styles.productMeta}>28 patches · 4-week supply</Text>
+            <Text style={styles.productMeta}>7 patches · RNA & hyaluronic acid</Text>
           </View>
         </View>
         <Text role="paragraph" style={styles.sub} testID="hero-subheadline">

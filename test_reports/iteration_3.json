@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 3 tested the new pricing, clinic-application required fields, push registration/reminder endpoints, push_service._due_reminders logic (unit tests), the CheckoutWidget plans/auto-ship chips, the /clinic-apply landing page and the order-confirmation reminder-card-web at 390x844. Backend: 26/27 tests pass. The one failure is a minor off-by-one: an order placed after 21:30 SGT gets 8 nightly reminders instead of 7. Frontend: every requested flow passes, and no 'S$' price text appears anywhere. register-push returns the expected 500 'EMERGENT_PUSH_KEY missing or invalid' (placeholder key), and the reminder opt-in still succeeds when the push send gets a 401. No deprecated Expo packages were found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "push_service._due_reminders", "issue": "Off-by-one for late-evening orders. day_index = (now - started).days counts 24h periods from the opt-in time, not SGT calendar nights. If the opt-in is between 21:30 and 24:00 SGT, the nightly reminder fires that same night and then 7 more nights: 8 reminders for a 7-patch box, so the last one comes after the patches run out. Repro: tests/test_push_due_reminders.py::test_nightly_count_when_started_late_evening. Fix: compute day_index from SGT calendar dates, (local.date() - started.astimezone(SGT).date()).days."},
+      {"endpoint": "POST /api/orders (plan=clinic) and /checkout?plan=clinic&qty=5", "issue": "The wholesale $185/box clinic plan can still be bought by anyone through a deep link or the API; it only needs a non-empty clinic_name. The partner program is now application-only, so this bypasses wholesale pricing. Clinic orders would also get consumer nightly reminders for up to 100*7 days."},
+      {"endpoint": "POST /api/orders/{id}/reminders", "issue": "The first_time check is not atomic: a read, then an update. The ReminderCard enable() flow and the 'already granted' auto-link effect can both fire, which causes two enable calls. Duplicate pushes are only prevented by the idempotency key. Use find_one_and_update with the filter reminders_enabled != true."},
+      {"endpoint": "push_service.reminder_loop", "issue": "Failed sends are retried every 60s for the rest of the night (no backoff). The 401 in preview, or a 4xx for an unregistered user, means a provider call every minute for each enabled order. Also, PUSH_KEY = os.environ.get('EMERGENT_PUSH_KEY', 'placeholder') has a default value, which breaks the 'no defaults, fail fast' env rule."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Native push opt-in", "issue": "registerForPush() (src/push.ts:39-46) ignores the /register-push response status. If registration returns 500 or 502, it still returns userId, and ReminderCard shows 'Reminders on' even though the device is not registered, so reminders never arrive. Check resp.ok and return null (or throw) on failure.", "affected_testIDs": ["reminder-enable-button", "reminder-card-enabled"]},
+      {"flow": "ReminderCard auto-link", "issue": "If permission is already granted, the effect (ReminderCard.tsx:29-32) silently re-enables reminders every time the order page is visited. This would override a user's DELETE opt-out.", "affected_testIDs": ["reminder-card"]}
+    ],
+    "design_issues": [
+      {"screen": "checkout", "issues": ["The checkout-tier-2 and checkout-tier-4 chips are 44x36, below the 44pt minimum touch-target height."]},
+      {"screen": "landing / CheckoutWidget", "issues": ["The sticky 'Order Now' CTA stays visible over the widget and partly covers the widget total row while scrolling. This duplicates the in-widget proceed-checkout-button."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_pricing_push.py", "/app/backend/tests/test_push_due_reminders.py", "/app/test_reports/pytest/pytest_iter3.xml"],
+  "action_items": [
+    "push_service._due_reminders: compute day_index from SGT calendar dates so a 1-box regimen gets exactly 7 nightly reminders, even when the opt-in is after 21:30 SGT.",
+    "Block the public clinic plan at $185: reject plan='clinic' in POST /api/orders (or gate it to approved partners) and stop /checkout from accepting plan=clinic.",
+    "src/push.ts registerForPush: check the /register-push response status and return null on failure so the UI does not show 'Reminders on' when registration failed.",
+    "Make the first-time check in enable_reminders atomic (find_one_and_update), and stop the ReminderCard effect from re-enabling reminders after an opt-out or a concurrent enable().",
+    "reminder_loop: add backoff or skip after a failed send; remove the 'placeholder' default for EMERGENT_PUSH_KEY.",
+    "Raise the checkout tier chip height to 44."
+  ],
+  "critical_code_review_comments": [
+    "Pricing is computed on the server (PLANS). one_time qty>=2 uses the $275 bundle price, so qty 3 = $825. This matches the UI stepper.",
+    "The order-email rate key collapses +aliases, so every delivered+*@resend.dev address shares one limit of 5 orders/hour. Test suites can only create 5 orders per backend process per hour. The limiter is in memory and resets when the backend reloads.",
+    "The reminder loop runs in every uvicorn worker. With more than one worker in prod it would duplicate the work; only the idempotency keys prevent duplicate pushes."
+  ],
+  "updated_files": ["/app/backend/tests/test_pricing_push.py (new)", "/app/backend/tests/test_push_due_reminders.py (new)"],
+  "success_rate": {"backend": "96% (26/27; 1 minor off-by-one in the scheduler)", "frontend": "100% of requested flows pass"},
+  "seed_data_creation": "None. 5 TEST orders and 2 TEST_ clinic applications were deleted after testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: EXPO_PUBLIC_BACKEND_URL=$(grep EXPO_PUBLIC_BACKEND_URL /app/frontend/.env|cut -d= -f2) pytest /app/backend/tests/test_pricing_push.py /app/backend/tests/test_push_due_reminders.py. test_pricing_push creates 4 orders; the per-email limit (all delivered+* aliases collapsed) is 5/hour. The backend's WatchFiles reload (for example after editing files in backend/tests) resets the in-memory limiter. Push 401 is expected in preview. On web, scroll elements to block:'center' before clicking, because the sticky CTA covers the bottom of the screen.",
+  "rca_of_issue": "8 nightly reminders: _due_reminders sets day_index = (now - started).days (24h periods since opt-in). For an opt-in at 23:00 SGT on day D, the reminder fires at 23:00 on D (day 0), and on D+7 at 21:30 the elapsed time is only 6d22.5h, so day_index is still 6 (< 7) and it fires again: nights D through D+7 = 8 reminders."
+}

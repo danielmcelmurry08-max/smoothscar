@@ -5,7 +5,7 @@ import { CONTACT_EMAIL, DISCLAIMER } from "../content";
 import { fonts, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
 
-type Props = { onNavigate: (key: "evidence" | "buy" | "info") => void; bottomPad: number };
+type Props = { onNavigate: (key: "evidence" | "buy" | "info") => void; onApply: () => void; bottomPad: number };
 
 const LINKS: { key: "evidence" | "buy" | "info"; label: string }[] = [
   { key: "evidence", label: "Clinical Evidence" },
@@ -13,7 +13,7 @@ const LINKS: { key: "evidence" | "buy" | "info"; label: string }[] = [
   { key: "info", label: "How It Works" },
 ];
 
-export function Footer({ onNavigate, bottomPad }: Props) {
+export function Footer({ onNavigate, onApply, bottomPad }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
@@ -28,6 +28,9 @@ export function Footer({ onNavigate, bottomPad }: Props) {
             <Text style={styles.linkText}>{l.label}</Text>
           </Pressable>
         ))}
+        <Pressable onPress={onApply} testID="footer-link-clinic-partners" style={styles.link}>
+          <Text style={styles.linkText}>Clinic Partners</Text>
+        </Pressable>
       </View>
       <Pressable onPress={() => Linking.openURL(`mailto:${CONTACT_EMAIL}`)} style={styles.email} testID="footer-email-link">
         <EnvelopeSimple size={18} color={colors.onSurfaceInverse} />

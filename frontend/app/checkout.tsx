@@ -7,17 +7,18 @@ import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboa
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { createOrder } from "@/src/api";
-import { CLINIC_TIERS, formatSGD, PlanId, PRICING } from "@/src/content";
+import { CLINIC_TIERS, formatSGD, PlanId, PRICING, SUB_TIERS, unitPriceFor } from "@/src/content";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
 
 type Pay = "apple_pay" | "google_pay" | "card";
 const PLAN_NAMES: Record<PlanId, string> = {
-  subscribe: "Continuous Scar Care · Subscribe & Save",
+  subscribe: "Auto-Ship · Every 2 Weeks",
   one_time: "BioRNA-C · One-time purchase",
   clinic: "Clinic & Multi-Pack Program",
 };
 const MAX_QTY: Record<PlanId, number> = { one_time: 10, subscribe: 4, clinic: 10 };
+const TIERS: Partial<Record<PlanId, number[]>> = { clinic: CLINIC_TIERS, subscribe: SUB_TIERS };
 
 type FieldKey = "full_name" | "email" | "phone" | "address" | "postal_code" | "clinic_name";
 
@@ -27,11 +28,12 @@ export default function Checkout() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ plan?: string; qty?: string }>();
-  const initialPlan: PlanId = params.plan === "clinic" || params.plan === "one_time" ? params.plan : "subscribe";
+  const initialPlan: PlanId = params.plan === "subscribe" ? "subscribe" : "one_time";
   const [plan] = useState<PlanId>(initialPlan);
   const [qty, setQty] = useState(() => {
     const q = parseInt(params.qty || "", 10);
-    if (initialPlan === "clinic") return CLINIC_TIERS.includes(q) ? q : CLINIC_TIERS[0];
+    const tiers = TIERS[initialPlan];
+    if (tiers) return tiers.includes(q) ? q : tiers[0];
     return q >= 1 && q <= MAX_QTY[initialPlan] ? q : 1;
   });
   const [pay, setPay] = useState<Pay>(Platform.OS === "android" ? "google_pay" : "apple_pay");
@@ -41,7 +43,8 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const refs = useRef<Partial<Record<FieldKey, TextInput | null>>>({});
 
-  const unit = PRICING[plan].unit;
+  const unit = unitPriceFor(plan, qty);
+  const tiers = TIERS[plan];
   const total = unit * qty;
 
   const fields: { key: FieldKey; label: string; placeholder: string; keyboard?: "email-address" | "phone-pad" | "number-pad"; auto?: any }[] = [
@@ -122,9 +125,9 @@ export default function Checkout() {
             <Text style={styles.planNote}>{PRICING[plan].note}</Text>
             <View style={styles.qtyRow}>
               <Text style={styles.qtyLabel}>{formatSGD(unit)} × {qty} box{qty > 1 ? "es" : ""}</Text>
-              {plan === "clinic" ? (
+              {tiers ? (
                 <View style={styles.tierRow}>
-                  {CLINIC_TIERS.map((t) => (
+                  {tiers.map((t) => (
                     <Pressable key={t} testID={`checkout-tier-${t}`} onPress={() => setQty(t)} style={[styles.tierChip, qty === t && styles.tierChipActive]}>
                       <Text style={[styles.tierChipText, qty === t && styles.tierChipTextActive]}>{t}</Text>
                     </Pressable>
@@ -147,7 +150,7 @@ export default function Checkout() {
               <Text style={styles.lineValue}>Free</Text>
             </View>
             <View style={[styles.line, styles.totalLine]}>
-              <Text style={styles.totalLabel}>Total{plan === "subscribe" ? " · every 4 weeks" : ""}</Text>
+              <Text style={styles.totalLabel}>Total{plan === "subscribe" ? " · every 2 weeks" : ""}</Text>
               <Text style={styles.totalValue} testID="checkout-total">{formatSGD(total)}</Text>
             </View>
           </View>
@@ -230,7 +233,7 @@ const useStyles = makeStyles((c) => ({
   stepBtn: { width: 44, height: 40, alignItems: "center", justifyContent: "center" },
   qtyValue: { fontFamily: fonts.bold, fontSize: 15, color: c.onSurface, minWidth: 20, textAlign: "center" },
   tierRow: { flexDirection: "row", gap: space.xs + 2 },
-  tierChip: { minWidth: 44, height: 36, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+  tierChip: { minWidth: 52, height: 44, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center" },
   tierChipActive: { borderColor: c.brandPrimary, backgroundColor: c.brandTertiary },
   tierChipText: { fontFamily: fonts.bold, fontSize: 14, color: c.muted },
   tierChipTextActive: { color: c.onBrandTertiary },

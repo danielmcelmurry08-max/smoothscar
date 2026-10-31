@@ -6,6 +6,7 @@ import Animated, { ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getOrder } from "@/src/api";
+import { ReminderCard } from "@/src/components/ReminderCard";
 import { CONTACT_EMAIL, formatSGD } from "@/src/content";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -34,7 +35,7 @@ export default function OrderConfirmation() {
         <Pressable onPress={() => refetch()} style={styles.secondary} testID="order-retry-button">
           <Text style={styles.secondaryText}>Tap to retry</Text>
         </Pressable>
-        <Pressable onPress={() => router.replace("/")} style={styles.secondary} testID="order-error-home-button">
+        <Pressable onPress={() => router.dismissTo("/")} style={styles.secondary} testID="order-error-home-button">
           <Text style={styles.secondaryText}>Back to home</Text>
         </Pressable>
       </View>
@@ -76,12 +77,14 @@ export default function OrderConfirmation() {
             </View>
           </View>
 
+          <ReminderCard orderId={data.id} enabled={!!data.reminders_enabled} onEnabled={() => refetch()} />
+
           <View style={styles.help}>
             <EnvelopeSimple size={18} color={colors.brandPrimary} />
             <Text style={styles.helpText}>Questions? {CONTACT_EMAIL}</Text>
           </View>
 
-          <Pressable testID="back-home-button" onPress={() => router.replace("/")} style={({ pressed }) => [styles.cta, pressed && styles.pressed]}>
+          <Pressable testID="back-home-button" onPress={() => router.dismissTo("/")} style={({ pressed }) => [styles.cta, pressed && styles.pressed]}>
             <Text style={styles.ctaText}>Back to BioRNA Antiscar</Text>
           </Pressable>
         </View>

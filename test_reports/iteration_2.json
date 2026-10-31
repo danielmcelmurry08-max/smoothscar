@@ -1,0 +1,48 @@
+{
+  "summary": "Iteration 2 (390x844 + backend). Backend: 44/44 pytest pass (test_clinic_and_email.py + updated test_orders.py). POST /api/clinic-applications validates the fixed practice_type/monthly_volume enums, email, required fields and max lengths (422), returns id (no _id), saves to db.clinic_applications, and returns 429 on the 6th request from one IP. Orders still work, send a background confirmation email ('Email sent (Your BioRNA Antiscar order BRNA-... is confirmed)' in the log), and return 429 on the 6th order for one customer email. Frontend: the case tabs switch to the real C-section, knee keloid and wrist keloid photos (all loaded at 900px); the slider drag works and case-quote updates. There are 5 testimonial cards in a horizontal scroller. NTU/NSC logos and the awards image load. How to Use shows the new copy (30 seconds, 8–12 hours). The full clinic flow passes from both the widget link and the footer link: 7 empty-submit errors with no API call, then fill, submit, success screen and home. Deep link /clinic-apply and back both work. Checkout regression passes (clinic x5 -> S$925 -> /order/[id]). Main new finding: the email provider began returning 429 rate_limited after about 26 send attempts in roughly 3 minutes. 16 of those attempts were to the undeliverable admin address. Confirmation emails for the UI order BRNA-261031-0026 and a later order were dropped, with no retry and no record of the failure. The email template's how-to-use copy is out of date, and the order page shows a different contact email than the emails.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "send_email (email_service.py:114-124)", "issue": "Provider 429 {'code':'rate_limited'} is logged as an ERROR and the email is lost: there is no retry/backoff and no email_status saved on the order or application. Seen live: the confirmation emails for orders BRNA-261031-0026 (UI order) and -0027 (a single order sent 60s later) both failed with 429. Every attempt to the undeliverable info@smoothscar.com also uses up provider quota."},
+      {"endpoint": "POST /api/clinic-applications, POST /api/orders", "issue": "The IP rate limit trusts the first X-Forwarded-For value, which the client controls (server.py:106,162). Tests confirm a random spoofed XFF gets past the limit. So the clinic form (IP limit only) can be used to flood the admin inbox. The per-email order limit can be bypassed with +aliases. The limiter is also in memory only, so it resets on restart and is not shared between workers."},
+      {"endpoint": "POST /api/orders", "issue": "rate_limited() runs before quantity/plan validation, so rejected orders (400) still count toward the 5-per-email / 20-per-IP limits."},
+      {"endpoint": "order_confirmation_email (email_service.py:200-201)", "issue": "The email's How-to-use copy is out of date: 'press one patch firmly for 10 seconds, wear overnight ... 6–8 week regimen'. The site now says 30 seconds of pressure, leave on 8–12 hours, replace daily (content.ts:108-110)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Clinic success -> home / order confirmation -> home", "issue": "router.replace('/') from a pushed screen leaves 2 landing-screen instances in the DOM/stack (counted 2 [data-testid=landing-screen] and 2 footer-link-clinic-partners). Use router.dismissTo('/') or back() if canGoBack.", "testID": "clinic-success-home-button", "priority": "low"}
+    ],
+    "integration_issues": [
+      {"flow": "Order confirmation email", "issue": "The order succeeds and the page says 'A confirmation will be sent to ...', but under provider rate limiting the email is silently dropped (see backend minor #1).", "affected_testIDs": ["place-order-button", "order-confirmation-screen"]}
+    ],
+    "design_issues": [
+      {"screen": "clinic-apply", "issues": ["practice-* / volume-* chips are 36px tall (below the 44px touch-target minimum) (clinic-apply.tsx:239)"]},
+      {"screen": "landing / Evidence", "issues": ["case-tab-* are 38px tall (below 44px)", "Slider height jumps a lot between tabs (C-section 145px vs knee 398px / wrist 420px), so content below shifts when switching", "The divider handle overlaps the 'BEFORE' label when dragged left (cosmetic)"]},
+      {"screen": "order confirmation", "issues": ["Contact shows CONTACT_EMAIL 'enquiry@BioRNA.sg' (content.ts:128), but emails use reply-to/questions info@smoothscar.com. The two should match."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_clinic_and_email.py", "/app/backend/tests/test_orders.py", "/app/test_reports/pytest/pytest_results_iter2.xml"],
+  "action_items": [
+    "Handle provider 429 'rate_limited' in send_email: retry with backoff (or a small persisted queue), and save email_status/email_id on the order and clinic_application docs",
+    "Stop sending to the undeliverable ADMIN_EMAIL until the domain can receive mail (or configure a verified inbox); it uses up email quota",
+    "Rate limiting: use the last (proxy-appended) X-Forwarded-For hop or the ingress real-IP header instead of the first, client-controlled value; run the limit after validation",
+    "Update the How-to-use copy in order_confirmation_email to match the site (30 seconds, 8–12 hours, replace daily)",
+    "Use one contact email: CONTACT_EMAIL in content.ts vs the email footer/reply-to (info@smoothscar.com)",
+    "Make chips and case tabs at least 44px tall; give the before/after slider a consistent height across cases",
+    "Use router.dismissTo('/') instead of router.replace('/') for the success/confirmation home buttons"
+  ],
+  "critical_code_review_comments": [
+    "email_service.py has good safety checks (forms/credential phrases/https/anchor-host) and HTML escaping of user input; templates are server-side",
+    "ClinicApplication extends BaseDocument and returns id, not _id; Pydantic Literal enums match the frontend PRACTICE_TYPES/VOLUMES exactly",
+    "Client-side email regex /^\\S+@\\S+\\.\\S+$/ is looser than EmailStr; a server 422 shows as the generic clinic-submit-error"
+  ],
+  "updated_files": ["/app/backend/tests/test_orders.py (now uses delivered+<id>@resend.dev and a random X-Forwarded-For; create cases reduced to 3 to save email quota)", "/app/backend/tests/test_clinic_and_email.py (new)"],
+  "success_rate": {"backend": "100% (44/44 tests; email delivery hit provider rate limiting during UI testing)", "frontend": "100% of requested flows pass; minor design issues only"},
+  "seed_data_creation": "None. TEST_ clinic applications are removed by the fixture teardown, and 23 TEST orders were deleted after testing.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: EXPO_PUBLIC_BACKEND_URL=$(grep EXPO_PUBLIC_BACKEND_URL /app/frontend/.env|cut -d= -f2) pytest /app/backend/tests/. Only use delivered+<label>@resend.dev and set a random X-Forwarded-For per request (rate limits: clinic 5/IP/h, orders 20/IP/h + 5/email/h). The email provider rate-limits after ~25 sends in a few minutes, so email-log assertions (test_order_triggers_email) can fail if the suite is run repeatedly; wait before rerunning. On web, scroll elements to block:'center' before clicking, because the sticky CTA covers the bottom ~110px.",
+  "rca_of_issue": "Lost confirmation emails: send_email runs as a FastAPI BackgroundTask and catches HTTPStatusError. 'rate_limited' is not in the paused-code list and nothing retries or records the failure, so the order stays 'confirmed' with no email. Repro: create about 25 orders/applications within a few minutes, then place one order; the log shows 'Email send failed: 429 ... rate_limited'."
+}

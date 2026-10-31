@@ -17,6 +17,7 @@ export type Order = {
   payment_method: string;
   customer: { full_name: string; email: string; phone: string; address: string; postal_code: string; clinic_name?: string | null };
   created_at: string;
+  reminders_enabled?: boolean;
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -33,4 +34,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const createOrder = (body: unknown) => request<Order>("/orders", { method: "POST", body: JSON.stringify(body) });
+export const createClinicApplication = (body: unknown) =>
+  request<{ id: string; clinic_name: string }>("/clinic-applications", { method: "POST", body: JSON.stringify(body) });
 export const getOrder = (id: string) => request<Order>(`/orders/${id}`);
+export const enableReminders = (id: string, push_user_id: string) =>
+  request<Order>(`/orders/${id}/reminders`, { method: "POST", body: JSON.stringify({ push_user_id }) });

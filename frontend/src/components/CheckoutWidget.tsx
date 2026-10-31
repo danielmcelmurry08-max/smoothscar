@@ -1,34 +1,37 @@
 import * as Haptics from "expo-haptics";
-import { ArrowRight, Buildings, CheckCircle, CircleIcon as Circle, Lock, Repeat } from "phosphor-react-native";
+import { ArrowRight, Buildings, CheckCircle, CircleIcon as Circle, Handshake, Lock, Repeat } from "phosphor-react-native";
+import { useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 
-import { CLINIC_TIERS, formatSGD, PlanId, PRICING } from "../content";
+import { formatSGD, PlanId, PRICING, SUB_TIERS, unitPriceFor } from "../content";
 import { fonts, radius, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
 import { PayBadges } from "./PayBadges";
 import { SectionHeader } from "./SectionHeader";
 
 export type Selection = { plan: PlanId; qty: number };
-type Props = { value: Selection; onChange: (s: Selection) => void; onProceed: () => void };
+type Props = { value: Selection; onChange: (s: Selection) => void; onProceed: () => void; onApply: () => void };
 
 const tap = () => Platform.OS !== "web" && Haptics.selectionAsync();
 
-export function CheckoutWidget({ value, onChange, onProceed }: Props) {
+export function CheckoutWidget({ value, onChange, onProceed, onApply }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
-  const mode = value.plan === "clinic" ? "clinic" : "personal";
-  const total = PRICING[value.plan].unit * value.qty;
+  const [mode, setMode] = useState<"personal" | "partner">("personal");
+  const total = unitPriceFor(value.plan, value.qty) * value.qty;
+  const selectedKey = value.plan === "subscribe" ? "autoship" : value.qty >= 2 ? "bundle" : "single";
+  const bundleSave = (PRICING.one_time.unit - PRICING.one_time.bundle) * 2;
 
-  const Option = ({ plan, title, sub, price, priceNote, badge }: { plan: PlanId; title: string; sub: string; price: string; priceNote: string; badge?: string }) => {
-    const selected = value.plan === plan;
+  const Option = ({ id, sel, title, sub, price, priceNote, badge }: { id: string; sel: Selection; title: string; sub: string; price: string; priceNote: string; badge?: string }) => {
+    const selected = selectedKey === id;
     return (
       <Pressable
-        testID={`plan-option-${plan}`}
+        testID={`plan-option-${id}`}
         role="radio"
         aria-checked={selected}
         onPress={() => {
           tap();
-          onChange({ plan, qty: 1 });
+          onChange(sel);
         }}
         style={[styles.option, selected && styles.optionActive]}
       >
@@ -63,91 +66,116 @@ export function CheckoutWidget({ value, onChange, onProceed }: Props) {
             aria-selected={mode === "personal"}
             onPress={() => {
               tap();
-              onChange({ plan: "subscribe", qty: 1 });
+              setMode("personal");
             }}
             style={[styles.tab, mode === "personal" && styles.tabActive]}
           >
             <Repeat size={16} color={mode === "personal" ? colors.onBrandPrimary : colors.muted} weight="bold" />
-            <Text style={[styles.tabText, mode === "personal" && styles.tabTextActive]}>Subscribe & Save</Text>
+            <Text style={[styles.tabText, mode === "personal" && styles.tabTextActive]}>Buy & Auto-Ship</Text>
           </Pressable>
           <Pressable
             testID="buy-tab-clinic"
             role="tab"
-            aria-selected={mode === "clinic"}
+            aria-selected={mode === "partner"}
             onPress={() => {
               tap();
-              onChange({ plan: "clinic", qty: CLINIC_TIERS[0] });
+              setMode("partner");
             }}
-            style={[styles.tab, mode === "clinic" && styles.tabActive]}
+            style={[styles.tab, mode === "partner" && styles.tabActive]}
           >
-            <Buildings size={16} color={mode === "clinic" ? colors.onBrandPrimary : colors.muted} weight="bold" />
-            <Text style={[styles.tabText, mode === "clinic" && styles.tabTextActive]}>Clinic & Multi-Pack</Text>
+            <Buildings size={16} color={mode === "partner" ? colors.onBrandPrimary : colors.muted} weight="bold" />
+            <Text style={[styles.tabText, mode === "partner" && styles.tabTextActive]}>Provider Partners</Text>
           </Pressable>
         </View>
 
         {mode === "personal" ? (
           <View style={styles.body}>
             <Text style={styles.heading}>Continuous Scar Care</Text>
-            <Text style={styles.desc}>6–8 week recommended regimen. Most users complete 2 boxes.</Text>
+            <Text style={styles.desc}>7 patches per box — one patch nightly. Bundle or auto-ship to keep your regimen going.</Text>
             <View style={styles.options} role="radiogroup">
-              <Option plan="subscribe" title="Subscribe & Save" sub={PRICING.subscribe.note} price={formatSGD(PRICING.subscribe.unit)} priceNote="/ 4 weeks" badge="SAVE 10%" />
-              <Option plan="one_time" title="One-time purchase" sub={PRICING.one_time.note} price={formatSGD(PRICING.one_time.unit)} priceNote="/ box" />
+              <Option id="single" sel={{ plan: "one_time", qty: 1 }} title="Single box" sub={PRICING.one_time.note} price={formatSGD(PRICING.one_time.unit)} priceNote="1 box" />
+              <Option
+                id="bundle"
+                sel={{ plan: "one_time", qty: 2 }}
+                title="2-box bundle"
+                sub={`${formatSGD(PRICING.one_time.bundle)} each · 2 weeks of nightly use`}
+                price={formatSGD(PRICING.one_time.bundle * 2)}
+                priceNote="2 boxes"
+                badge={`SAVE ${formatSGD(bundleSave)}`}
+              />
+              <Option
+                id="autoship"
+                sel={{ plan: "subscribe", qty: value.plan === "subscribe" ? value.qty : SUB_TIERS[0] }}
+                title="Auto-Ship every 2 weeks"
+                sub={`${formatSGD(PRICING.subscribe.unit)} per box · multi-box · cancel anytime`}
+                price={formatSGD(PRICING.subscribe.unit)}
+                priceNote="/ box"
+                badge="BEST VALUE"
+              />
+            </View>
+            {value.plan === "subscribe" ? (
+              <View style={styles.subRow} testID="autoship-qty-row">
+                <Text style={styles.subLabel}>Boxes per shipment</Text>
+                <View style={styles.subChips}>
+                  {SUB_TIERS.map((q) => (
+                    <Pressable
+                      key={q}
+                      testID={`autoship-qty-${q}`}
+                      onPress={() => {
+                        tap();
+                        onChange({ plan: "subscribe", qty: q });
+                      }}
+                      style={[styles.subChip, value.qty === q && styles.optionActive]}
+                    >
+                      <Text style={[styles.subChipText, value.qty === q && styles.subChipTextActive]}>{q} boxes</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.summary}>
+              <Text style={styles.summaryLabel}>{value.plan === "subscribe" ? "Every 2 weeks" : "Total today"}</Text>
+              <Text style={styles.summaryValue} testID="widget-total">{formatSGD(total)}</Text>
+            </View>
+
+            <Pressable
+              testID="proceed-checkout-button"
+              onPress={() => {
+                if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onProceed();
+              }}
+              style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
+            >
+              <Lock size={16} color={colors.onBrandPrimary} weight="bold" />
+              <Text style={styles.ctaText}>Proceed to Secure Checkout</Text>
+              <ArrowRight size={16} color={colors.onBrandPrimary} weight="bold" />
+            </Pressable>
+            <View style={styles.badges}>
+              <PayBadges />
             </View>
           </View>
         ) : (
           <View style={styles.body}>
-            <Text style={styles.heading}>Clinic & Multi-Pack Program</Text>
-            <Text style={styles.desc}>Provider partner pricing for clinics, aesthetic practices and multi-pack buyers.</Text>
-            <View style={styles.tiers} role="radiogroup">
-              {CLINIC_TIERS.map((q) => {
-                const selected = value.qty === q;
-                return (
-                  <Pressable
-                    key={q}
-                    testID={`clinic-tier-${q}`}
-                    role="radio"
-                    aria-checked={selected}
-                    onPress={() => {
-                      tap();
-                      onChange({ plan: "clinic", qty: q });
-                    }}
-                    style={[styles.tier, selected && styles.optionActive]}
-                  >
-                    <Text style={styles.tierQty}>{q}</Text>
-                    <Text style={styles.tierLabel}>boxes</Text>
-                    <Text style={styles.tierPrice}>{formatSGD(PRICING.clinic.unit * q)}</Text>
-                  </Pressable>
-                );
-              })}
+            <Text style={styles.heading}>Provider Partner Program</Text>
+            <Text style={styles.desc}>
+              For clinics, aesthetic practices, pharmacies and healthcare businesses. Apply once and our team sets up your partner account and wholesale pricing.
+            </Text>
+            <View style={styles.partnerList}>
+              {["Wholesale partner pricing", "Peer-reviewed clinical evidence to share", "Dedicated partnerships contact"].map((t) => (
+                <View key={t} style={styles.partnerItem}>
+                  <CheckCircle size={18} color={colors.brandPrimary} weight="fill" />
+                  <Text style={styles.partnerText}>{t}</Text>
+                </View>
+              ))}
             </View>
-            <View style={styles.partnerRow}>
-              <Text style={styles.partnerText}>{formatSGD(PRICING.clinic.unit)} per box</Text>
-              <Text style={styles.strike}>{formatSGD(PRICING.one_time.unit)}</Text>
-              <Text style={styles.partnerSave}>Save {Math.round((1 - PRICING.clinic.unit / PRICING.one_time.unit) * 100)}%</Text>
-            </View>
+            <Pressable testID="apply-partner-link" onPress={onApply} style={({ pressed }) => [styles.cta, pressed && styles.pressed]}>
+              <Handshake size={18} color={colors.onBrandPrimary} weight="bold" />
+              <Text style={styles.ctaText}>Become a Provider Partner</Text>
+              <ArrowRight size={16} color={colors.onBrandPrimary} weight="bold" />
+            </Pressable>
           </View>
         )}
-
-        <View style={styles.summary}>
-          <Text style={styles.summaryLabel}>Total today</Text>
-          <Text style={styles.summaryValue} testID="widget-total">{formatSGD(total)}</Text>
-        </View>
-
-        <Pressable
-          testID="proceed-checkout-button"
-          onPress={() => {
-            if (Platform.OS !== "web") Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            onProceed();
-          }}
-          style={({ pressed }) => [styles.cta, pressed && styles.pressed]}
-        >
-          <Lock size={16} color={colors.onBrandPrimary} weight="bold" />
-          <Text style={styles.ctaText}>Proceed to Secure Checkout</Text>
-          <ArrowRight size={16} color={colors.onBrandPrimary} weight="bold" />
-        </Pressable>
-        <View style={styles.badges}>
-          <PayBadges />
-        </View>
       </View>
     </View>
   );
@@ -219,6 +247,25 @@ const useStyles = makeStyles((c) => ({
   partnerText: { fontFamily: fonts.bold, fontSize: 14, color: c.onSurface },
   strike: { fontFamily: fonts.regular, fontSize: 13, color: c.muted, textDecorationLine: "line-through" },
   partnerSave: { fontFamily: fonts.bold, fontSize: 13, color: c.success },
+  partnerList: { gap: space.md, marginTop: space.lg, marginBottom: space.sm },
+  partnerItem: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  subRow: { marginTop: space.md },
+  subLabel: { fontFamily: fonts.medium, fontSize: 13, color: c.onSurfaceTertiary, marginBottom: space.sm },
+  subChips: { flexDirection: "row", gap: space.sm },
+  subChip: { flex: 1, height: 44, borderRadius: radius.md, borderWidth: 1.5, borderColor: c.border, alignItems: "center", justifyContent: "center" },
+  subChipText: { fontFamily: fonts.bold, fontSize: 14, color: c.muted },
+  subChipTextActive: { color: c.onBrandTertiary },
+  applyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    minHeight: 48,
+    marginTop: space.md,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    backgroundColor: c.brandTertiary,
+  },
+  applyText: { flex: 1, fontFamily: fonts.bold, fontSize: 14, color: c.onBrandTertiary },
   summary: {
     flexDirection: "row",
     justifyContent: "space-between",

@@ -1,24 +1,29 @@
 export type PlanId = "one_time" | "subscribe" | "clinic";
 
 export const PRICING = {
-  one_time: { unit: 300, label: "One-time purchase", note: "Single box · ships in 1–2 days" },
-  subscribe: { unit: 270, label: "Subscribe & Save 10%", note: "Delivered every 4 weeks · cancel anytime" },
+  one_time: { unit: 300, bundle: 275, label: "One-time purchase", note: "7 patches per box · ships in 1–2 days" },
+  subscribe: { unit: 275, label: "Auto-Ship", note: "Ships every 2 weeks · cancel anytime" },
   clinic: { unit: 185, label: "Provider partner price", note: "Per box · minimum 2 boxes" },
 };
 
+export const unitPriceFor = (plan: PlanId, qty: number) =>
+  plan === "one_time" ? (qty >= 2 ? PRICING.one_time.bundle : PRICING.one_time.unit) : PRICING[plan].unit;
+
+export const SUB_TIERS = [2, 4];
+
 export const CLINIC_TIERS = [2, 5, 10];
 
-export const formatSGD = (n: number) => `S$${n.toLocaleString("en-SG")}`;
+export const formatSGD = (n: number) => `$${n.toLocaleString("en-SG")}`;
 
 export const IMAGES = {
-  heroMother:
-    "https://images.unsplash.com/photo-1570657891791-e39a9d185540?crop=entropy&cs=srgb&fm=jpg&w=1200&q=80",
-  productPatch:
-    "https://images.unsplash.com/photo-1670201203150-bf8771401590?crop=entropy&cs=srgb&fm=jpg&w=600&q=80",
-  beforeScar:
-    "https://images.unsplash.com/photo-1541752857837-f8a0154fd092?crop=entropy&cs=srgb&fm=jpg&w=900&q=80",
-  afterSmooth:
-    "https://images.unsplash.com/photo-1723540634462-528708cc17aa?crop=entropy&cs=srgb&fm=jpg&w=900&q=80",
+  heroMother: {
+    uri: "https://images.unsplash.com/photo-1570657891791-e39a9d185540?crop=entropy&cs=srgb&fm=jpg&w=1200&q=80",
+  },
+  productBox: require("../assets/images/clinical/product-box.jpg"),
+  awards: require("../assets/images/clinical/awards.jpg"),
+  logoNtu: require("../assets/images/clinical/logo-ntu.jpg"),
+  logoNsc: require("../assets/images/clinical/logo-nsc.jpg"),
+  logoMadeSg: require("../assets/images/clinical/logo-made-sg.jpg"),
 };
 
 export const AGITATION = [
@@ -33,29 +38,57 @@ export const STATS = [
   { id: "prefer", value: "8/10", label: "Prefer BioRNA Antiscar over standard patches" },
 ];
 
+export const STUDY_NOTE = "*50 patients. Measurements made using a high-resolution 3D scanner.";
+
 export const CASES = [
   {
     id: "csection",
-    tab: "C-section scar",
-    caption: "Post-caesarean hypertrophic scar · 8 weeks of use",
-    before: IMAGES.beforeScar,
-    after: IMAGES.afterSmooth,
+    tab: "C-section",
+    caption: "C-section scar · Day 0 vs after 6 weeks of BioRNA",
+    quote: "“I actually feel my scar getting a little flatter.” — Patient, 10 hours/patch",
+    aspect: 2.2,
+    before: require("../assets/images/clinical/csection-before.jpg"),
+    after: require("../assets/images/clinical/csection-after.jpg"),
   },
   {
     id: "keloid",
     tab: "Knee keloid",
-    caption: "Knee keloid · 60 days of use",
-    before: IMAGES.beforeScar,
-    after: IMAGES.afterSmooth,
+    caption: "10-month-old knee keloid · Day 0 vs Day 21",
+    quote: "Almost level with the skin — no more pain, itchiness or sensitivity. Silicone patches had no effect.",
+    aspect: 0.8,
+    before: require("../assets/images/clinical/knee-keloid-before.jpg"),
+    after: require("../assets/images/clinical/knee-keloid-after.jpg"),
   },
+  {
+    id: "wrist",
+    tab: "Wrist keloid",
+    caption: "Wrist keloid · Day 0 vs Day 7",
+    quote: "“(Colour) more like my regular skin tone, (height) less raised, (size) smaller width.” — Patient",
+    aspect: 0.75,
+    before: require("../assets/images/clinical/wrist-keloid-before.jpg"),
+    after: require("../assets/images/clinical/wrist-keloid-after.jpg"),
+  },
+];
+
+export const TESTIMONIALS = [
+  { id: "amelia", name: "Amelia W.", scar: "Breast surgery scar", text: "A section of my scar popped up along the line. After a few uses, the uneven part flattened and is not so obvious anymore." },
+  { id: "rajan", name: "Rajan P.", scar: "Knee keloid", text: "I had a keloid on my knee for years. Steroid jabs didn't last and were very painful. With BioRNA it feels less rigid and doesn't jut out as sharply when I bend my knee." },
+  { id: "michelle", name: "Michelle L.", scar: "Chest keloid", text: "Silicone sheets never stayed on because I sweat easily. With BioRNA I only use it at night. After a while the keloid feels less bulky." },
+  { id: "xinyu", name: "C. Xinyu", scar: "Thyroid surgery scar", text: "Silicone sheets would curl up every time. After giving BioRNA a go, the thick part slowly softened. It feels more even and less noticeable." },
+  { id: "marcus", name: "Marcus L.", scar: "Keyhole surgery keloid", text: "I was hesitating about another injection so I tried BioRNA first. After a few weeks the lump feels flatter when I run my thumb over it." },
 ];
 
 export const CITATION = "Annals of the Academy of Medicine, Singapore 2024;53:113-6";
 
 export const TRUST = [
   { id: "lkc", name: "Lee Kong Chian", sub: "School of Medicine" },
-  { id: "ntu", name: "NTU", sub: "Nanyang Technological University" },
   { id: "coolab", name: "CO11AB", sub: "Incubation Space" },
+  { id: "rnascence", name: "RNAscence", sub: "Biotechnology" },
+];
+
+export const TRUST_LOGOS = [
+  { id: "ntu", label: "Nanyang Technological University", source: IMAGES.logoNtu },
+  { id: "nsc", label: "National Skin Centre", source: IMAGES.logoNsc },
 ];
 
 export const ACCORDIONS = [
@@ -63,19 +96,24 @@ export const ACCORDIONS = [
     id: "how-it-works",
     title: "How It Works",
     items: [
-      "Each patch carries hundreds of dissolvable micro-tips that painlessly reach just beneath the skin surface.",
-      "The micro-tips deliver a targeted RNA-based active that addresses the overactive fibroblast signalling behind raised scars — the root cause, not just the surface.",
-      "Steroid-free: no skin thinning, no injections, no needles.",
+      "1. Apply patch — dissolvable micro-tips made of hyaluronic acid carry RNA nanoplexes.",
+      "2. Micro-tips engage — they painlessly enter just beneath the skin surface.",
+      "3. Ingredient transfer — the micro-tips dissolve and release the RNA nanoplex where the scar forms, targeting the root cause rather than just the surface.",
+      "4. Reduce appearance of scar — raised scars flatten, soften and blend toward your natural skin tone.",
+      "Steroid-free and painless. Developed by RNAscence Biotechnology, a spin-off from NTU & National Skin Centre.",
     ],
   },
   {
     id: "how-to-use",
     title: "How to Use",
     items: [
-      "1. Cleanse and fully dry the scar area.",
-      "2. Press one patch firmly onto the scar for 10 seconds.",
-      "3. Wear overnight (6–8 hours), then peel off and discard.",
-      "4. Repeat as directed for the recommended 6–8 week regimen.",
+      "Best before bed.",
+      "1. Clean and dry the skin.",
+      "2. Peel the patch and apply it on the scar.",
+      "3. Press with gentle, constant pressure for 30 seconds to secure.",
+      "4. Leave on for 8–12 hours.",
+      "5. Replace daily until satisfied.",
+      "For new wounds, start after wound closure or stitch removal. Do not use on open wounds.",
     ],
   },
   {
@@ -85,7 +123,9 @@ export const ACCORDIONS = [
       "Is it painful? No. The micro-tips are shorter than nerve endings, so most users feel only a light pressure.",
       "Which scars does it work on? C-section, keloid and hypertrophic scars — both new and established.",
       "Is it safe after pregnancy? It is steroid-free. If breastfeeding, consult your doctor before use.",
-      "When will I see results? Many users notice softer, flatter scars within 4 weeks; clinical data measured 60 days.",
+      "When will I see results? Some users notice a softer, flatter scar within days to weeks; the clinical study measured 95% volume reduction at 60 days.",
+      "Will the scar come back after I stop? 83% of study patients did not experience worsening or elevation of the scar after stopping usage (16.1 months follow-up).",
+      "What's in a box? Each box contains 7 patches with dissolvable micro-tips (RNA & hyaluronic acid technology). Hypoallergenic and dermatologically tested.",
     ],
   },
 ];
@@ -93,4 +133,4 @@ export const ACCORDIONS = [
 export const CONTACT_EMAIL = "enquiry@BioRNA.sg";
 
 export const DISCLAIMER =
-  "BioRNA Antiscar is a cosmetic product and is not intended to diagnose, treat, cure or prevent any disease. Individual results may vary. Clinical statistics refer to study participants as published in the cited peer-reviewed journal. Before/after images are illustrative. Consult a healthcare professional if you have concerns about your scar.";
+  "BioRNA Antiscar is a cosmetic product and is not intended to diagnose, treat, cure or prevent any disease. Individual results may vary. Clinical statistics refer to study participants as published in the cited peer-reviewed journal. Before/after photos are from real BioRNA users; results vary between individuals. Consult a healthcare professional if you have concerns about your scar.";

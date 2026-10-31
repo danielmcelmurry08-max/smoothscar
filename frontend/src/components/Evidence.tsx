@@ -3,7 +3,7 @@ import { BookOpenText } from "phosphor-react-native";
 import { useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 
-import { CASES, CITATION, STATS } from "../content";
+import { CASES, CITATION, STATS, STUDY_NOTE } from "../content";
 import { fonts, radius, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
 import { BeforeAfterSlider } from "./BeforeAfterSlider";
@@ -30,6 +30,7 @@ export function Evidence() {
             <Text style={styles.statLabel}>{s.label}</Text>
           </View>
         ))}
+        <Text style={styles.studyNote}>{STUDY_NOTE}</Text>
       </View>
 
       <View style={styles.dual} testID="clinical-data-container">
@@ -66,7 +67,8 @@ export function Evidence() {
           </View>
           <BeforeAfterSlider key={active.id} before={active.before} after={active.after} label={active.tab} testID={`before-after-slider-${active.id}`} />
           <Text style={styles.caption}>{active.caption}</Text>
-          <Text style={styles.hint}>Drag the handle to compare · Illustrative imagery</Text>
+          <Text style={styles.quote} testID="case-quote">{active.quote}</Text>
+          <Text style={styles.hint}>Drag the handle to compare · Real user photos, results vary</Text>
         </View>
       </View>
     </View>
@@ -107,10 +109,12 @@ const useStyles = makeStyles((c) => ({
   citeText: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 21, color: c.onSurface, marginTop: 2 },
   baCard: { backgroundColor: c.surfaceSecondary, borderRadius: radius.lg, padding: space.md },
   tabs: { flexDirection: "row", backgroundColor: c.surfaceTertiary, borderRadius: radius.md, padding: 3, marginBottom: space.md },
-  tab: { flex: 1, height: 38, borderRadius: radius.md - 2, alignItems: "center", justifyContent: "center" },
+  tab: { flex: 1, height: 44, borderRadius: radius.md - 2, alignItems: "center", justifyContent: "center" },
   tabActive: { backgroundColor: c.surface },
   tabText: { fontFamily: fonts.medium, fontSize: 14, color: c.muted },
   tabTextActive: { color: c.onSurface },
   caption: { fontFamily: fonts.bold, fontSize: 14, color: c.onSurface, marginTop: space.md, paddingHorizontal: space.xs },
+  quote: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: c.onSurfaceTertiary, marginTop: space.xs, paddingHorizontal: space.xs },
+  studyNote: { fontFamily: fonts.regular, fontSize: 11, color: c.muted, paddingBottom: space.lg },
   hint: { fontFamily: fonts.regular, fontSize: 12, color: c.muted, marginTop: 2, paddingHorizontal: space.xs, paddingBottom: space.xs },
 }));

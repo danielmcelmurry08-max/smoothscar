@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { Image } from "expo-image";
+import { Image, ImageSource } from "expo-image";
 import { CaretLeft, CaretRight } from "phosphor-react-native";
 import { useMemo, useRef, useState } from "react";
 import { Animated, PanResponder, Platform, Text, View } from "react-native";
@@ -7,7 +7,7 @@ import { Animated, PanResponder, Platform, Text, View } from "react-native";
 import { fonts, radius, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
 
-type Props = { before: string; after: string; label: string; testID: string };
+type Props = { before: ImageSource | number; after: ImageSource | number; label: string; testID: string };
 
 export function BeforeAfterSlider({ before, after, label, testID }: Props) {
   const styles = useStyles();
@@ -60,10 +60,10 @@ export function BeforeAfterSlider({ before, after, label, testID }: Props) {
       {...responder.panHandlers}
     >
       <View style={styles.full} pointerEvents="none">
-        <Image source={{ uri: after }} style={styles.full} contentFit="cover" accessibilityLabel={`${label} after treatment`} />
+        <Image source={after} style={styles.full} contentFit="cover" accessibilityLabel={`${label} after treatment`} />
       </View>
       <Animated.View style={[styles.clip, { width: pos }]} pointerEvents="none">
-        <Image source={{ uri: before }} style={[styles.beforeImg, { width }]} contentFit="cover" accessibilityLabel={`${label} before treatment`} />
+        <Image source={before} style={[styles.beforeImg, { width }]} contentFit="cover" accessibilityLabel={`${label} before treatment`} />
       </Animated.View>
       <View style={[styles.tag, styles.tagLeft]} pointerEvents="none">
         <Text style={styles.tagText}>BEFORE</Text>
@@ -82,7 +82,7 @@ export function BeforeAfterSlider({ before, after, label, testID }: Props) {
 }
 
 const useStyles = makeStyles((c) => ({
-  wrap: { height: 260, borderRadius: radius.md, overflow: "hidden", backgroundColor: c.surfaceTertiary },
+  wrap: { width: "100%", height: 300, borderRadius: radius.md, overflow: "hidden", backgroundColor: c.surfaceTertiary },
   full: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   clip: { position: "absolute", top: 0, left: 0, bottom: 0, overflow: "hidden" },
   beforeImg: { height: "100%" },

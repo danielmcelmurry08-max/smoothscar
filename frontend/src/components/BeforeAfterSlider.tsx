@@ -7,9 +7,9 @@ import { Animated, PanResponder, Platform, Text, View } from "react-native";
 import { fonts, radius, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
 
-type Props = { before: ImageSource | number; after: ImageSource | number; label: string; testID: string };
+type Props = { before: ImageSource | number; after: ImageSource | number; label: string; testID: string; beforeLabel?: string; afterLabel?: string };
 
-export function BeforeAfterSlider({ before, after, label, testID }: Props) {
+export function BeforeAfterSlider({ before, after, label, testID, beforeLabel = "BEFORE", afterLabel = "AFTER" }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
@@ -66,15 +66,15 @@ export function BeforeAfterSlider({ before, after, label, testID }: Props) {
         <Image source={before} style={[styles.beforeImg, { width }]} contentFit="cover" accessibilityLabel={`${label} before treatment`} />
       </Animated.View>
       <View style={[styles.tag, styles.tagLeft]} pointerEvents="none">
-        <Text style={styles.tagText}>BEFORE</Text>
+        <Text style={styles.tagText}>{beforeLabel}</Text>
       </View>
       <View style={[styles.tag, styles.tagRight]} pointerEvents="none">
-        <Text style={styles.tagText}>AFTER</Text>
+        <Text style={styles.tagText}>{afterLabel}</Text>
       </View>
       <Animated.View style={[styles.handleLine, { transform: [{ translateX: pos }] }]} pointerEvents="none">
         <View style={styles.knob} testID={`${testID}-handle`}>
-          <CaretLeft size={14} color={colors.brandPrimary} weight="bold" />
-          <CaretRight size={14} color={colors.brandPrimary} weight="bold" />
+          <CaretLeft size={14} color={colors.sage} weight="bold" />
+          <CaretRight size={14} color={colors.sage} weight="bold" />
         </View>
       </Animated.View>
     </View>

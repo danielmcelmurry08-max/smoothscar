@@ -1,9 +1,11 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
+import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { useCart } from "@/src/cart";
 import { CHECKOUT_ENABLED, formatUSD, getProduct, priceOf } from "@/src/catalog";
+import { CartUpsell } from "@/src/components/CartUpsell";
 import { Button, QtyStepper, Section, StoreScreen } from "@/src/components/Store";
 import { fonts, radius, space } from "@/src/fonts";
 import { makeStyles } from "@/src/theme";
@@ -12,6 +14,8 @@ export default function CartScreen() {
   const styles = useStyles();
   const router = useRouter();
   const { lines, total, setQty, remove } = useCart();
+  // Lock the suggested add-on for this visit so toggling it does not swap the offer.
+  const [offered] = useState(() => (["biorna-c-baby-girl", "biorna-c-baby-boy", "biorna-c-starter", "antiscar-original"] as const).find((id) => !lines.some((l) => l.id === id)) ?? null);
 
   return (
     <StoreScreen title="Your cart | BioRNA" description="Review the BioRNA products in your cart." testID="cart-screen">
@@ -53,6 +57,7 @@ export default function CartScreen() {
                 {total == null ? "Pending verified prices" : formatUSD(total)}
               </Text>
             </View>
+            <CartUpsell offered={offered} />
             <Button label={CHECKOUT_ENABLED ? "Checkout" : "Checkout coming soon"} disabled={!CHECKOUT_ENABLED} onPress={() => {}} testID="cart-checkout" />
             <Text style={styles.muted}>Online payment is not set up yet, so no orders are placed or charged. Your cart is saved on this device.</Text>
           </View>

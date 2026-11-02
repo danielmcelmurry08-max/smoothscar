@@ -1,11 +1,13 @@
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
-import { CheckCircle, Gift, Lock } from "phosphor-react-native";
+import { CheckCircle, Flask, Gift, Lock } from "phosphor-react-native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 
 import { useCart } from "@/src/cart";
 import { CHECKOUT_ENABLED, getProduct, priceOf, ProductId } from "@/src/catalog";
+import { BeforeAfterSlider } from "@/src/components/BeforeAfterSlider";
+import { SaveCartModal } from "@/src/components/SaveCartModal";
 import { Button, PriceTag, STORE_MAX, StoreScreen } from "@/src/components/Store";
 import { fonts, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -13,6 +15,10 @@ import { makeStyles, useTheme } from "@/src/theme";
 // Only verified statements appear here. Ratings, certifications, guarantees and
 // HSA/FSA eligibility can be added once they are substantiated.
 const PROOF = ["Hypoallergenic & dermatologically validated", "Suitable for sensitive skin", "Needle-free dissolvable micro-tips", "Studied in a published randomized trial"];
+
+// Before/after photos stay unpublished until you have written permission and a compliance review.
+// Set to { before: require(...), after: require(...), caption: "..." } to show the slider.
+const APPROVED_BEFORE_AFTER: { before: number; after: number; caption: string } | null = null;
 
 const PATHS: { id: ProductId; kicker: string; blurb: string; cta: string; ribbon?: string }[] = [
   { id: "biorna-c-starter", kicker: "Try it first", blurb: "A 2-patch introduction to BioRNA-C for your healed C-section scar.", cta: "Add to Cart" },
@@ -66,6 +72,15 @@ export default function Home() {
           </View>
           <View style={styles.visual} role="img" aria-label="BioRNA-C gift box beside the BioRNA-C standard box">
             <Image source={gift.image} style={styles.visualMain} contentFit="contain" accessibilityLabel="BioRNA-C Baby Girl gift box" />
+            <View style={styles.badge}>
+              <Flask size={18} color={colors.sage} weight="bold" />
+              <View>
+                <Text style={styles.badgeTitle}>Clinical research</Text>
+                <Text style={styles.badgeText} onPress={() => router.push("/science")}>
+                  Published trial, 2024 →
+                </Text>
+              </View>
+            </View>
             <View style={styles.visualInset}>
               <Image source={pouch.image} style={styles.visualInsetImg} contentFit="contain" accessibilityLabel="BioRNA-C Standard Pack" />
             </View>
@@ -84,6 +99,27 @@ export default function Home() {
           ))}
         </View>
       </View>
+
+      {/* SECTION 3: Before & after (shown only with approved photos) */}
+      {APPROVED_BEFORE_AFTER ? (
+        <View role="region" aria-label="Before and after" style={styles.section} testID="before-after">
+          <View style={styles.inner}>
+            <Text style={styles.eyebrow}>Real results</Text>
+            <Text role="heading" aria-level={2} style={styles.h2}>
+              See the difference
+            </Text>
+            <BeforeAfterSlider
+              before={APPROVED_BEFORE_AFTER.before}
+              after={APPROVED_BEFORE_AFTER.after}
+              label="C-section scar"
+              beforeLabel="BEFORE"
+              afterLabel="AFTER"
+              testID="home-before-after"
+            />
+            <Text style={styles.fine}>{APPROVED_BEFORE_AFTER.caption} Individual results vary.</Text>
+          </View>
+        </View>
+      ) : null}
 
       {/* SECTION 3: Choose your path */}
       <View role="region" aria-label="Choose your pack" style={styles.section} testID="purchase-grid">
@@ -171,6 +207,7 @@ export default function Home() {
           <Button label="View Cart" onPress={() => router.push("/cart")} testID="bar-cart" />
         </View>
       </View>
+      <SaveCartModal />
     </StoreScreen>
   );
 }
@@ -188,6 +225,10 @@ const useStyles = makeStyles((c) => ({
   visual: { flexGrow: 1, flexBasis: 320, height: 400, borderRadius: radius.lg, backgroundColor: c.surfaceSecondary, padding: space.xl },
   visualMain: { width: "100%", height: "100%" },
   visualInset: { position: "absolute", right: space.lg, bottom: space.lg, width: 130, height: 120, borderRadius: radius.md, backgroundColor: c.surface, padding: space.sm, borderWidth: 1, borderColor: c.border },
+  badge: { position: "absolute", left: space.lg, top: space.lg, flexDirection: "row", alignItems: "center", gap: space.sm, backgroundColor: c.surface, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.sm, borderWidth: 1, borderColor: c.sage, shadowColor: c.brandSecondary, shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  badgeTitle: { fontFamily: fonts.bold, fontSize: 13, color: c.onSurface },
+  badgeText: { fontFamily: fonts.medium, fontSize: 13, color: c.accentText },
+  fine: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 20, color: c.muted, marginTop: space.md },
   visualInsetImg: { width: "100%", height: "100%" },
   strip: { backgroundColor: c.surfaceSecondary, paddingHorizontal: space.xl, paddingVertical: space.lg },
   stripInner: { width: "100%", maxWidth: STORE_MAX, alignSelf: "center", flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", rowGap: space.sm, columnGap: space.xl },

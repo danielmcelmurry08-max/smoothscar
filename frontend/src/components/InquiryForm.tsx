@@ -100,7 +100,7 @@ export function InquiryForm({ def }: { def: FormDef }) {
         );
       })}
       <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: consent }} onPress={() => setConsent(!consent)} style={styles.consent} testID={`${def.id}-consent`}>
-        {consent ? <CheckSquare size={24} color={colors.brandPrimary} weight="fill" /> : <Square size={24} color={colors.muted} />}
+        {consent ? <CheckSquare size={24} color={colors.accentText} weight="fill" /> : <Square size={24} color={colors.muted} />}
         <Text style={styles.consentText}>
           I agree that SmoothScar may store this information and contact me about my inquiry, as described in the{" "}
           <Link href="/privacy" style={styles.link}>
@@ -133,12 +133,12 @@ const useStyles = makeStyles((c) => ({
   errBox: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: c.error, borderWidth: 1, borderColor: c.error, borderRadius: radius.md, padding: space.md },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   chip: { minHeight: 40, justifyContent: "center", paddingHorizontal: space.md, borderRadius: radius.pill, borderWidth: 1, borderColor: c.borderStrong, backgroundColor: c.surface },
-  chipOn: { backgroundColor: c.brandPrimary, borderColor: c.brandPrimary },
+  chipOn: { backgroundColor: c.brandSecondary, borderColor: c.brandSecondary },
   chipText: { fontFamily: fonts.medium, fontSize: 14, color: c.onSurface },
-  chipTextOn: { color: c.onBrandPrimary },
+  chipTextOn: { color: c.onBrandSecondary },
   consent: { flexDirection: "row", gap: space.sm, alignItems: "flex-start" },
   consentText: { flex: 1, fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: c.onSurfaceTertiary },
-  link: { color: c.brandPrimary, fontFamily: fonts.bold, textDecorationLine: "underline" },
+  link: { color: c.accentText, fontFamily: fonts.bold, textDecorationLine: "underline" },
   success: { padding: space.xl, borderRadius: radius.lg, backgroundColor: c.brandTertiary, gap: space.sm, maxWidth: 680 },
   successTitle: { fontFamily: fonts.bold, fontSize: 18, color: c.brandSecondary },
 }));

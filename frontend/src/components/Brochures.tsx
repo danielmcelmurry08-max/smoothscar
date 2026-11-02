@@ -34,7 +34,7 @@ const useStyles = makeStyles((c) => ({
   card: { flexGrow: 1, flexBasis: 280, maxWidth: 520, backgroundColor: c.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, padding: space.lg, gap: space.xs },
   thumb: { height: 180, borderRadius: radius.md, backgroundColor: c.surfaceSecondary, marginBottom: space.sm, padding: space.sm },
   img: { width: "100%", height: "100%" },
-  sub: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.6, textTransform: "uppercase", color: c.brandPrimary },
+  sub: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.6, textTransform: "uppercase", color: c.accentText },
   title: { fontFamily: fonts.bold, fontSize: 18, color: c.brandSecondary },
   desc: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: c.onSurfaceTertiary },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },

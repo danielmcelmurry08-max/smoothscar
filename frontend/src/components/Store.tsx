@@ -54,7 +54,7 @@ export function StoreScreen({ title, description, children, testID }: { title: s
               </Link>
             ))}
             <Pressable testID="header-cart" onPress={() => router.push("/cart")} style={styles.cartBtn} accessibilityLabel={`Cart, ${count} items`}>
-              <ShoppingBag size={22} color={colors.brandPrimary} weight="bold" />
+              <ShoppingBag size={22} color={colors.accentText} weight="bold" />
               {count ? (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{count}</Text>
@@ -109,7 +109,7 @@ export function Section({ eyebrow, title, body, children, tone = "plain", testID
   );
 }
 
-export function Button({ label, onPress, variant = "primary", disabled, testID }: { label: string; onPress: () => void; variant?: "primary" | "secondary"; disabled?: boolean; testID?: string }) {
+export function Button({ label, onPress, variant = "primary", disabled, testID, icon }: { label: string; onPress: () => void; variant?: "primary" | "secondary"; disabled?: boolean; testID?: string; icon?: ReactNode }) {
   const styles = useStyles();
   return (
     <Pressable
@@ -120,7 +120,10 @@ export function Button({ label, onPress, variant = "primary", disabled, testID }
       accessibilityState={{ disabled }}
       style={({ pressed }) => [styles.btn, variant === "secondary" && styles.btnSecondary, disabled && styles.btnDisabled, pressed && !disabled && styles.pressed]}
     >
-      <Text style={[styles.btnText, variant === "secondary" && styles.btnTextSecondary, disabled && styles.btnTextDisabled]}>{label}</Text>
+      <View style={styles.btnRow}>
+        {icon}
+        <Text style={[styles.btnText, variant === "secondary" && styles.btnTextSecondary, disabled && styles.btnTextDisabled]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -177,13 +180,13 @@ export function QtyStepper({ value, onChange, testID }: { value: number; onChang
   return (
     <View style={styles.stepper} testID={testID}>
       <Pressable onPress={() => onChange(Math.max(1, value - 1))} style={styles.stepBtn} accessibilityLabel="Decrease quantity">
-        <Minus size={16} color={colors.brandPrimary} weight="bold" />
+        <Minus size={16} color={colors.accentText} weight="bold" />
       </Pressable>
       <Text style={styles.stepVal} aria-live="polite">
         {value}
       </Text>
       <Pressable onPress={() => onChange(Math.min(20, value + 1))} style={styles.stepBtn} accessibilityLabel="Increase quantity">
-        <Plus size={16} color={colors.brandPrimary} weight="bold" />
+        <Plus size={16} color={colors.accentText} weight="bold" />
       </Pressable>
     </View>
   );
@@ -278,7 +281,7 @@ export function HowToUse() {
           return (
             <View key={s.title} style={styles.useCard}>
               <View style={styles.useIcon}>
-                <Icon size={22} color={colors.brandPrimary} weight="duotone" />
+                <Icon size={22} color={colors.sage} weight="duotone" />
               </View>
               <Text style={styles.stepTitle}>{s.title}</Text>
               <Text style={styles.stepBody}>{s.body}</Text>
@@ -290,7 +293,6 @@ export function HowToUse() {
   );
 }
 
-const silver = "#C9D1DC";
 
 const useStyles = makeStyles((c) => ({
   root: { flex: 1, backgroundColor: c.surface },
@@ -302,8 +304,8 @@ const useStyles = makeStyles((c) => ({
   nav: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", columnGap: space.md, flexShrink: 1 },
   navLink: { fontFamily: fonts.medium, fontSize: 14, color: c.onSurface, paddingVertical: space.sm },
   cartBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
-  badge: { position: "absolute", top: 4, right: 2, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
-  badgeText: { fontFamily: fonts.bold, fontSize: 11, color: c.onBrandPrimary },
+  badge: { position: "absolute", top: 4, right: 2, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: c.brandSecondary, alignItems: "center", justifyContent: "center" },
+  badgeText: { fontFamily: fonts.bold, fontSize: 11, color: c.onBrandSecondary },
   scroll: { flexGrow: 1 },
   main: { flexGrow: 1 },
   footer: { backgroundColor: c.brandSecondary, paddingTop: space.xxl, paddingHorizontal: space.xl },
@@ -316,14 +318,15 @@ const useStyles = makeStyles((c) => ({
   sectionSoft: { backgroundColor: c.brandTertiary },
   sectionInner: { width: "100%", maxWidth: STORE_MAX, alignSelf: "center" },
   sectionBody: { marginTop: space.xl },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", color: c.brandPrimary, marginBottom: space.sm },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", color: c.accentText, marginBottom: space.sm },
   h2: { fontFamily: fonts.black, fontSize: 28, lineHeight: 34, letterSpacing: -0.6, color: c.brandSecondary },
   body: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 24, color: c.onSurfaceTertiary, marginTop: space.md, maxWidth: 680 },
-  btn: { minHeight: 48, paddingHorizontal: space.xl, borderRadius: radius.pill, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
-  btnSecondary: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.brandPrimary },
+  btn: { minHeight: 52, paddingHorizontal: space.xl, borderRadius: radius.md, shadowColor: c.brandSecondary, shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
+  btnSecondary: { backgroundColor: c.surface, borderWidth: 1.5, borderColor: c.roseOutline, shadowOpacity: 0 },
   btnDisabled: { backgroundColor: c.surfaceTertiary, borderColor: c.surfaceTertiary },
-  btnText: { fontFamily: fonts.bold, fontSize: 15, color: c.onBrandPrimary },
-  btnTextSecondary: { color: c.brandPrimary },
+  btnRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  btnText: { fontFamily: fonts.bold, fontSize: 18, color: c.onBrandPrimary },
+  btnTextSecondary: { color: c.brandSecondary },
   btnTextDisabled: { color: c.muted },
   pressed: { opacity: 0.85 },
   price: { fontFamily: fonts.black, fontSize: 18, color: c.onSurface },
@@ -331,43 +334,43 @@ const useStyles = makeStyles((c) => ({
   priceSoon: { fontFamily: fonts.bold, fontSize: 14, color: c.muted },
   priceSoonLg: { fontSize: 18 },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: space.lg },
-  card: { flexGrow: 1, flexBasis: 240, maxWidth: 520, backgroundColor: c.surface, borderRadius: radius.lg, padding: space.lg, borderWidth: 1, borderColor: silver, gap: 2 },
+  card: { flexGrow: 1, flexBasis: 240, maxWidth: 520, backgroundColor: c.surface, borderRadius: radius.lg, padding: space.lg, borderWidth: 1, borderColor: c.border, gap: 2 },
   cardFeatured: { borderColor: c.brandPrimary, borderWidth: 2 },
-  accentGirl: { backgroundColor: "#FBF5FC", borderColor: "#D9C2E3" },
-  accentBoy: { backgroundColor: "#F2F7FD", borderColor: "#B9D2EE" },
+  accentGirl: { backgroundColor: c.surface, borderColor: c.roseOutline },
+  accentBoy: { backgroundColor: c.surface, borderColor: c.sage },
   cardImgWrap: { height: 200, borderRadius: radius.md, backgroundColor: c.surfaceSecondary, overflow: "hidden", marginBottom: space.md },
   cardImg: { width: "100%", height: "100%" },
   ribbon: { position: "absolute", top: space.sm, left: space.sm, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 3 },
-  ribbonGirl: { backgroundColor: "#8E5BA8" },
-  ribbonBoy: { backgroundColor: "#2F6DB5" },
-  ribbonText: { fontFamily: fonts.bold, fontSize: 11, color: "#FFFFFF", letterSpacing: 0.4 },
-  cardLine: { fontFamily: fonts.bold, fontSize: 12, color: c.brandPrimary, letterSpacing: 0.6, textTransform: "uppercase" },
+  ribbonGirl: { backgroundColor: c.roseOutline },
+  ribbonBoy: { backgroundColor: c.sage },
+  ribbonText: { fontFamily: fonts.bold, fontSize: 12, color: c.brandSecondary, letterSpacing: 0.4 },
+  cardLine: { fontFamily: fonts.bold, fontSize: 12, color: c.accentText, letterSpacing: 0.6, textTransform: "uppercase" },
   cardName: { fontFamily: fonts.bold, fontSize: 17, color: c.onSurface },
   cardMeta: { fontFamily: fonts.regular, fontSize: 13, color: c.muted },
   cardFoot: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: space.md },
-  cardLink: { fontFamily: fonts.bold, fontSize: 14, color: c.brandPrimary },
-  stepper: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: silver, borderRadius: radius.pill, alignSelf: "flex-start" },
+  cardLink: { fontFamily: fonts.bold, fontSize: 14, color: c.accentText },
+  stepper: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: c.border, borderRadius: radius.pill, alignSelf: "flex-start" },
   stepBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   stepVal: { minWidth: 32, textAlign: "center", fontFamily: fonts.bold, fontSize: 16, color: c.onSurface },
   list: { gap: space.sm },
   listRow: { flexDirection: "row", gap: space.sm },
-  listMark: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 22, color: c.brandPrimary, minWidth: 18 },
+  listMark: { fontFamily: fonts.bold, fontSize: 15, lineHeight: 22, color: c.accentText, minWidth: 18 },
   listText: { flex: 1, fontFamily: fonts.regular, fontSize: 15, lineHeight: 22, color: c.onSurfaceTertiary },
   howWrap: { flexDirection: "row", flexWrap: "wrap", gap: space.xl },
-  diagram: { flexGrow: 1, flexBasis: 280, backgroundColor: c.surface, borderRadius: radius.lg, padding: space.xl, borderWidth: 1, borderColor: silver, gap: space.xs },
+  diagram: { flexGrow: 1, flexBasis: 280, backgroundColor: c.surface, borderRadius: radius.lg, padding: space.xl, borderWidth: 1, borderColor: c.border, gap: space.xs },
   diagramLabel: { fontFamily: fonts.medium, fontSize: 12, color: c.muted },
-  diagramBacking: { height: 14, borderRadius: 4, backgroundColor: silver },
+  diagramBacking: { height: 14, borderRadius: 4, backgroundColor: c.borderStrong },
   diagramTips: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 6 },
-  tip: { width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderTopWidth: 22, borderLeftColor: "transparent", borderRightColor: "transparent", borderTopColor: c.brandPrimary, opacity: 0.75 },
-  diagramSkinTop: { height: 26, marginTop: -16, backgroundColor: "#F4D9CC", opacity: 0.85, borderTopLeftRadius: 4, borderTopRightRadius: 4 },
-  diagramSkinDeep: { height: 40, backgroundColor: "#EBC3B1", borderBottomLeftRadius: 4, borderBottomRightRadius: 4 },
+  tip: { width: 0, height: 0, borderLeftWidth: 7, borderRightWidth: 7, borderTopWidth: 22, borderLeftColor: "transparent", borderRightColor: "transparent", borderTopColor: c.sage },
+  diagramSkinTop: { height: 26, marginTop: -16, backgroundColor: c.surfaceSecondary, opacity: 0.85, borderTopLeftRadius: 4, borderTopRightRadius: 4 },
+  diagramSkinDeep: { height: 40, backgroundColor: c.surfaceTertiary, borderBottomLeftRadius: 4, borderBottomRightRadius: 4 },
   steps: { flexGrow: 1, flexBasis: 280, gap: space.lg },
   step: { flexDirection: "row", gap: space.md, alignItems: "flex-start" },
-  stepNum: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
-  stepNumText: { fontFamily: fonts.black, fontSize: 14, color: c.onBrandPrimary },
+  stepNum: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.sage, alignItems: "center", justifyContent: "center" },
+  stepNumText: { fontFamily: fonts.black, fontSize: 14, color: c.brandSecondary },
   stepTitle: { fontFamily: fonts.bold, fontSize: 16, color: c.brandSecondary },
   stepBody: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 21, color: c.onSurfaceTertiary, marginTop: 2 },
   useGrid: { flexDirection: "row", flexWrap: "wrap", gap: space.md },
   useCard: { flexGrow: 1, flexBasis: 170, backgroundColor: c.surfaceSecondary, borderRadius: radius.lg, padding: space.lg, gap: space.xs },
-  useIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.brandTertiary, alignItems: "center", justifyContent: "center", marginBottom: space.xs },
+  useIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: c.sageTint, alignItems: "center", justifyContent: "center", marginBottom: space.xs },
 }));

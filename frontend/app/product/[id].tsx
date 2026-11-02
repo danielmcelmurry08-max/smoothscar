@@ -82,11 +82,11 @@ const useStyles = makeStyles((c) => ({
   boy: { backgroundColor: "#F2F7FD" },
   img: { width: "100%", height: "100%" },
   info: { flexGrow: 1, flexBasis: 300, gap: space.sm },
-  line: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", color: c.brandPrimary },
+  line: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase", color: c.accentText },
   h1: { fontFamily: fonts.black, fontSize: 32, lineHeight: 38, letterSpacing: -0.8, color: c.brandSecondary },
   meta: { fontFamily: fonts.medium, fontSize: 14, color: c.muted },
   tagline: { fontFamily: fonts.regular, fontSize: 16, lineHeight: 24, color: c.onSurfaceTertiary, marginBottom: space.sm },
   buyRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.md, marginTop: space.md },
   note: { fontFamily: fonts.regular, fontSize: 13, color: c.muted },
-  link: { fontFamily: fonts.bold, fontSize: 14, color: c.brandPrimary, paddingVertical: space.xs },
+  link: { fontFamily: fonts.bold, fontSize: 14, color: c.accentText, paddingVertical: space.xs },
 }));

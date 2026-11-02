@@ -1,4 +1,5 @@
 import { PRODUCTS } from "@/src/catalog";
+import { ResultsGallery } from "@/src/components/ResultsGallery";
 import { BulletList, ProductGrid, Section, StoreScreen } from "@/src/components/Store";
 
 export default function BioRnaC() {
@@ -18,6 +19,7 @@ export default function BioRnaC() {
       <Section eyebrow="Baby Gift Collection" title="A 24-patch gift for new moms." body="Choose the Baby Girl or Baby Boy gift box. Both contain the same 24 BioRNA-C patches." tone="soft">
         <ProductGrid products={PRODUCTS.filter((p) => p.category === "gift")} />
       </Section>
+      <ResultsGallery only="C-Section Scars" title="C-section results" showLink />
       <Section eyebrow="Good to know" title="Caring for a C-section scar">
         <BulletList
           items={[

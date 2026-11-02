@@ -6,7 +6,7 @@ import { Text, View } from "react-native";
 
 import { useCart } from "@/src/cart";
 import { CHECKOUT_ENABLED, getProduct, priceOf, ProductId } from "@/src/catalog";
-import { BeforeAfterSlider } from "@/src/components/BeforeAfterSlider";
+import { ResultsGallery } from "@/src/components/ResultsGallery";
 import { SaveCartModal } from "@/src/components/SaveCartModal";
 import { Button, PriceTag, STORE_MAX, StoreScreen } from "@/src/components/Store";
 import { fonts, radius, space } from "@/src/fonts";
@@ -15,10 +15,6 @@ import { makeStyles, useTheme } from "@/src/theme";
 // Only verified statements appear here. Ratings, certifications, guarantees and
 // HSA/FSA eligibility can be added once they are substantiated.
 const PROOF = ["Hypoallergenic & dermatologically validated", "Suitable for sensitive skin", "Needle-free dissolvable micro-tips", "Studied in a published randomized trial"];
-
-// Before/after photos stay unpublished until you have written permission and a compliance review.
-// Set to { before: require(...), after: require(...), caption: "..." } to show the slider.
-const APPROVED_BEFORE_AFTER: { before: number; after: number; caption: string } | null = null;
 
 const PATHS: { id: ProductId; kicker: string; blurb: string; cta: string; ribbon?: string }[] = [
   { id: "biorna-c-starter", kicker: "Try it first", blurb: "A 2-patch introduction to BioRNA-C for your healed C-section scar.", cta: "Add to Cart" },
@@ -100,27 +96,6 @@ export default function Home() {
         </View>
       </View>
 
-      {/* SECTION 3: Before & after (shown only with approved photos) */}
-      {APPROVED_BEFORE_AFTER ? (
-        <View role="region" aria-label="Before and after" style={styles.section} testID="before-after">
-          <View style={styles.inner}>
-            <Text style={styles.eyebrow}>Real results</Text>
-            <Text role="heading" aria-level={2} style={styles.h2}>
-              See the difference
-            </Text>
-            <BeforeAfterSlider
-              before={APPROVED_BEFORE_AFTER.before}
-              after={APPROVED_BEFORE_AFTER.after}
-              label="C-section scar"
-              beforeLabel="BEFORE"
-              afterLabel="AFTER"
-              testID="home-before-after"
-            />
-            <Text style={styles.fine}>{APPROVED_BEFORE_AFTER.caption} Individual results vary.</Text>
-          </View>
-        </View>
-      ) : null}
-
       {/* SECTION 3: Choose your path */}
       <View role="region" aria-label="Choose your pack" style={styles.section} testID="purchase-grid">
         <View style={styles.inner}>
@@ -194,6 +169,9 @@ export default function Home() {
           </Text>
         </View>
       </View>
+
+      {/* Clinical results gallery, below the technology explanation */}
+      <ResultsGallery showLink />
 
       {/* SECTION 5: Reassurance & checkout bar */}
       <View role="region" aria-label="Checkout information" style={styles.bar} testID="checkout-bar">

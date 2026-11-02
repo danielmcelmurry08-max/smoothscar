@@ -20,12 +20,14 @@ from push_service import register_device, reminder_loop, reminders_started_now, 
 from email_service import referral_reward_email  # noqa: E402
 from referrals import apply_code, ensure_referral_code, preview_code, record_referral, referral_status, release_claim, release_reward  # noqa: E402
 import asyncio  # noqa: E402
+import secrets  # noqa: E402
 import re  # noqa: E402
 from auth import build_router as build_auth_router, ensure_auth_indexes, get_current_user  # noqa: E402
 from autoship import build_router as build_autoship_router  # noqa: E402
 from admin import build_router as build_admin_router, check_admin  # noqa: E402
 from pricing import build_plans, get_prices  # noqa: E402
-from reviews import build_router as build_reviews_router  # noqa: E402
+from reviews import build_router as build_reviews_router, review_request_loop  # noqa: E402
+from storage import init_storage  # noqa: E402
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = client[os.environ['DB_NAME']]
@@ -95,6 +97,12 @@ class Order(BaseDocument):
     customer: Customer
     created_at: str
     reminders_enabled: bool = False
+    before_photo_id: Optional[str] = None
+    photo_token: Optional[str] = None
+
+    @classmethod
+    def public(cls, doc: dict):
+        return cls.model_validate({**doc, "photo_token": None})
 
 
 class ReminderOptIn(BaseModel):
@@ -140,7 +148,8 @@ async def send_and_record(collection: str, doc_id: str, **kwargs):
 
 @api_router.post("/orders", response_model=Order, response_model_by_alias=False)
 async def create_order(payload: OrderCreate, request: Request, background: BackgroundTasks):
-    plan = build_plans(await get_prices(db))[payload.plan]
+    plan_prices = await get_prices(db)
+    plan = build_plans(plan_prices)[payload.plan]
     if payload.quantity < plan["min_qty"] or payload.quantity > plan["max_qty"]:
         raise HTTPException(400, f"Quantity must be between {plan['min_qty']} and {plan['max_qty']}")
     if plan["allowed_qty"] and payload.quantity not in plan["allowed_qty"]:
@@ -156,8 +165,8 @@ async def create_order(payload: OrderCreate, request: Request, background: Backg
     customer_key = email_key(payload.customer.email)
     applied, kind, discount, discount_label = None, None, 0, None
     if payload.code and payload.code.strip():
-        applied, kind, discount, _ = await apply_code(db, payload.code, customer_key, unit_price, subtotal)
-        discount_label = "Referral discount" if kind == "referral" else "Reward: 1 free box"
+        applied, kind, discount, _ = await apply_code(db, payload.code, customer_key, unit_price, subtotal, msrp=plan_prices["single"])
+        discount_label = {"referral": "Referral discount", "review": "Review thank-you: 25% off one box"}.get(kind, "Reward: 1 free box")
     now = datetime.now(timezone.utc)
     counter = await db.counters.find_one_and_update(
         {"_id": "orders"}, {"$inc": {"seq": 1}}, upsert=True, return_document=ReturnDocument.AFTER
@@ -178,13 +187,14 @@ async def create_order(payload: OrderCreate, request: Request, background: Backg
         payment_method=payload.payment_method,
         customer=payload.customer,
         created_at=now.isoformat(),
+        photo_token=secrets.token_urlsafe(16),
     )
     try:
         signed_in = await get_current_user(db, request, required=False)
         res = await db.orders.insert_one({**order.to_mongo(), "email_key": customer_key,
                                           **({"user_id": signed_in["user_id"]} if signed_in else {})})
     except Exception:
-        if kind == "reward":
+        if kind in ("reward", "review"):
             await release_reward(db, applied)
         if kind == "referral":
             await release_claim(db, customer_key)
@@ -296,7 +306,7 @@ async def get_order(order_id: str):
     doc = await db.orders.find_one({"_id": oid})
     if not doc:
         raise HTTPException(404, "Order not found")
-    return Order.from_mongo(doc)
+    return Order.public(doc)
 
 
 @api_router.post("/register-push", status_code=201)
@@ -331,7 +341,7 @@ async def enable_reminders(order_id: str, body: ReminderOptIn):
             "action_url": f"/order/{order_id}",
         }, idempotency_key=f"order-confirmed-{order_id}")
     doc = await db.orders.find_one({"_id": oid})
-    return Order.from_mongo(doc)
+    return Order.public(doc)
 
 
 @api_router.delete("/orders/{order_id}/reminders", response_model=Order, response_model_by_alias=False)
@@ -343,7 +353,7 @@ async def disable_reminders(order_id: str):
     res = await db.orders.find_one_and_update({"_id": oid}, {"$set": {"reminders_enabled": False}}, return_document=ReturnDocument.AFTER)
     if not res:
         raise HTTPException(404, "Order not found")
-    return Order.from_mongo(res)
+    return Order.public(res)
 
 
 app.include_router(api_router)
@@ -374,11 +384,18 @@ async def ensure_indexes():
     await db.referrals.create_index("code", unique=True)
     await db.referrals.create_index("owner_key", unique=True)
     await db.reward_codes.create_index("code", unique=True)
+    await db.reward_codes.create_index("review_id", unique=True, partialFilterExpression={"review_id": {"$type": "string"}})
     await db.reviews.create_index("order_number", unique=True)
     await db.reviews.create_index([("status", 1), ("approved_at", -1)])
     await db.referral_claims.create_index("customer_key", unique=True)
     await ensure_auth_indexes(db)
     asyncio.create_task(reminder_loop(db))
+    asyncio.create_task(review_request_loop(db))
+    await db.review_photos.create_index("order_id")
+    try:
+        await asyncio.to_thread(init_storage)
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Storage init failed: {e}")
 
 
 @app.on_event("shutdown")

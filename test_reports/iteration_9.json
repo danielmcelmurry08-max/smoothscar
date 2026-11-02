@@ -1,0 +1,41 @@
+{
+  "summary": "Retest of iteration 8 fixes. Backend: 39/39 tests in test_review_photos_rewards.py (updated for photo_token/admin_token, plus a new test for retrying a stuck 'pending' code) and test_admin_reviews_pricing.py pass. Each test passed on a fresh run. One rerun hit the in-memory review rate limit (429), which is a test-environment effect. All requested fixes are verified as working: POST /orders returns photo_token and GET /orders/{id} returns null for it. before-photo returns 422 without a token and 403 with a wrong or other order's token. Photos load with ?token= for the owner. ?order_id= and ?admin= now return 404. /admin/view-token returns an HMAC token without the passcode, and a tampered, expired or garbage admin_token returns 404. Lookup returns {photo_token, before_photo_id}. Re-approving a review stuck at 'pending' issues a code. UI (390x844): after checkout the app goes to /order/[id]?t=..., and before-photo-card sits above order-details. The upload sends the token and the card shows 'Before photo saved'. Reloading with t shows the saved image via ?token=, and without t the card is hidden. On /review the saved before photo prefills through lookup. Changing the email or order number clears the photos, and restoring the email reloads the before photo. While a photo uploads, Submit shows 'Uploading photo…' with aria-disabled=true. A failed re-upload (503) puts back the exact previous blob and shows the error. The footnote mentions approved photos, and the camera button reads 'Camera'. An 800px image stayed 800px wide (no upscaling). Admin Reviews shows both photos via admin_token with no passcode in the URL, and approval works. NEW medium issue: the 'pending' retry introduced a duplicate-code race (reproduced). Deprecated packages detected: none.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/admin/reviews/{id} (approve)", "issue": "Duplicate 25% codes. The claim filter treats reward_code=='pending' as retryable, but 'pending' is also the state while the first approval is still running. send_email is awaited inline with 5/10/20s backoff on provider 429, so approval takes about 36s. A second approval during that window (two clicks or tabs, or Approve → Take down → Approve, or the admin retrying after a timeout) claims again and issues a second valid code. Reproduced with tests/dup_reward_race_check.py: 2 concurrent approvals returned RVWED8DTZ and RVW29BXWT, and both are stored in reward_codes for one review. Reference: /app/backend/reviews.py:71-82"},
+      {"endpoint": "POST /api/admin/reviews/{id} (approve)", "issue": "The request blocks until the reward email has been sent, including retries: about 36s under provider rate limiting, and up to about 155s worst case (4 tries × 30s httpx timeout + 35s sleeps). That can pass the ingress timeout, and then the admin sees an error even though the code was issued. Reference: /app/backend/reviews.py:81"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "ReviewsTab reward line", "issue": "While approval is in progress (or stuck), reward_code='pending' and reward_email_status=null, so the card shows '25% code pending · emailed'. That is misleading: no code exists yet and nothing has been emailed. Show something like 'Issuing code…' when the code is pending, and only say 'emailed' when status=='sent'. Reference: /app/frontend/src/components/admin/ReviewsTab.tsx:83-87", "testID": "admin-review-code-{id}", "priority": "low"},
+      {"component": "review.tsx photoError", "issue": "The photo upload error stays visible after the order number or email changes and the photos are cleared. Clear photoError in the same lookupKey effect. Reference: /app/frontend/app/review.tsx:48-51", "testID": "review-photo-error", "priority": "low"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/review", "issues": ["While 'Uploading photo…' shows, the disabled Submit button only drops to 0.85 opacity, so it still looks tappable. Use a clearer disabled style (e.g. 0.5)."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_review_photos_rewards.py", "/app/backend/tests/test_admin_reviews_pricing.py", "/app/backend/tests/dup_reward_race_check.py", "/app/test_reports/pytest/pytest_iter9.xml"],
+  "action_items": [
+    "Make issuing review codes idempotent per review. Either (a) put a unique index on reward_codes.review_id and have issue_review_code return the existing code for that review_id, or (b) claim with a lease (reward_claim_at) and only reclaim 'pending' after it is stale (e.g. older than 5 minutes). Then re-run tests/dup_reward_race_check.py, which should report 1 code.",
+    "In on_review_approved, save the code first, then send the reward email in a BackgroundTask (or a fire-and-forget task that records reward_email_status), so the admin approval request returns quickly.",
+    "ReviewsTab: don't show 'pending · emailed'. Show 'Issuing code…' when reward_code==='pending', and only say 'emailed' when reward_email_status==='sent'.",
+    "review.tsx: call setPhotoError('') when lookupKey changes. Optionally ignore an upload result that arrives after the order or email changed (compare the lookupKey captured at pick time).",
+    "Optional: ReviewsTab view token TTL is 1h with a 30-minute staleTime. If the admin keeps the tab open for more than 1h with no refocus or remount, new images will 404. Consider a refetchInterval of about 30 minutes."
+  ],
+  "critical_code_review_comments": [
+    "reviews.py:71-82 — the claim on 'pending' is not exclusive (see the duplicate-code race above). If issue_review_code succeeds but the final update_one fails, a retry also mints a second code.",
+    "review.tsx pickPhoto: an upload that is still running when the order or email changes will write its photo id into the cleared slot. On submit the backend safely rejects it with 400 'photo doesn't belong', but it is confusing for the user.",
+    "The photo_token sits in the /order/[id]?t= URL, so it stays in browser history. That is acceptable for this threat model. GET /orders/{id}, the reminders endpoints and admin rows correctly hide it."
+  ],
+  "updated_files": ["/app/backend/tests/test_review_photos_rewards.py (updated for photo_token/admin_token; added tests for token-required upload, view-token, and retrying a stuck pending code)", "/app/backend/tests/dup_reward_race_check.py (new reproduction script)"],
+  "success_rate": {"backend": "100% of planned tests (39/39); 1 new medium race issue found by a separate script", "frontend": "100% of requested flows"},
+  "seed_data_creation": "Orders BRNA-261102-0159/0160 plus TEST_ race orders (delivered+...@resend.dev). TEST reviews were set to rejected afterwards. Some RVW codes exist from the race check. The backend was restarted once to clear the in-memory rate limiter.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: export EXPO_PUBLIC_BACKEND_URL=<frontend/.env>; cd /app/backend; python -m pytest tests/test_review_photos_rewards.py tests/test_admin_reviews_pricing.py. If you rerun several times, the in-memory per-IP review rate limit (10/h) gives 429. Restart the backend to clear it. Race check: python tests/dup_reward_race_check.py (expect 1 code after the fix). The email provider is often rate-limited (429), which makes approval take about 36s. Ingress replaces Cache-Control with no-store, so don't assert it. On web, wrap the click on *-library in page.expect_file_chooser() and then call set_files.",
+  "rca_of_issue": "Duplicate codes: on_review_approved uses find_one_and_update with $or [no reward_code, reward_code=='pending'] → set 'pending'. Because 'pending' matches its own claim state, a second caller during the about 36s email send (inline with retry/backoff) claims as well and calls issue_review_code again. Reproduction: create an order and a review, then POST approve twice at the same time. Fix: make issuance idempotent per review_id (unique index plus return of the existing code) or use a time-based lease, and move the email out of the request path."
+}

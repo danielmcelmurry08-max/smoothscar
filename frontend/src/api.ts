@@ -1,4 +1,5 @@
 import { PlanId, Prices } from "./content";
+import { uploadForm } from "./utils/upload";
 
 const BASE = `${process.env.EXPO_PUBLIC_BACKEND_URL}/api`;
 
@@ -22,6 +23,8 @@ export type Order = {
   customer: { full_name: string; email: string; phone: string; address: string; postal_code: string; clinic_name?: string | null };
   created_at: string;
   reminders_enabled?: boolean;
+  before_photo_id?: string | null;
+  photo_token?: string | null;
 };
 
 let authToken: string | null = null;
@@ -48,7 +51,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const createOrder = (body: unknown) => request<Order>("/orders", { method: "POST", body: JSON.stringify(body) });
-export type CodePreview = { code: string; kind: "referral" | "reward"; label: string };
+export type CodePreview = { code: string; kind: "referral" | "reward" | "review"; label: string; percent?: number };
 export const checkCode = (code: string) => request<CodePreview>(`/codes/${encodeURIComponent(code)}`);
 export type ReferralStatus = { code: string; successful_count: number; friends_to_next_reward: number; rewards_earned: number; friend_discount: number; friends_per_reward: number };
 export const getReferral = (code: string) => request<ReferralStatus>(`/referrals/${encodeURIComponent(code)}`);
@@ -98,20 +101,38 @@ export type AdminStats = {
 };
 export const getAdminOrders = (passcode: string, days: number) =>
   adminRequest<{ orders: AdminOrder[]; stats: AdminStats }>(passcode, `/orders?days=${days}`);
+export const getAdminViewToken = (passcode: string) => adminRequest<{ token: string }>(passcode, "/view-token");
 export const getAdminPricing = (passcode: string) => adminRequest<Prices>(passcode, "/pricing");
 export const setAdminPricing = (passcode: string, prices: Prices) =>
   adminRequest<Prices>(passcode, "/pricing", { method: "PUT", body: JSON.stringify(prices) });
 export type ReviewStatus = "pending" | "approved" | "rejected";
-export type AdminReview = Review & { order_number: string; customer_email: string; status: ReviewStatus };
+export type AdminReview = Review & { order_number: string; customer_email: string; status: ReviewStatus; reward_code: string | null; reward_email_status: string | null };
 export const getAdminReviews = (passcode: string, status: ReviewStatus | "all") => adminRequest<AdminReview[]>(passcode, `/reviews?status=${status}`);
 export const decideReview = (passcode: string, id: string, status: ReviewStatus) =>
   adminRequest<{ id: string; status: ReviewStatus }>(passcode, `/reviews/${id}`, { method: "POST", body: JSON.stringify({ status }) });
 
 export const getPricing = () => request<{ currency: string; prices: Prices }>("/pricing");
-export type Review = { id: string; display_name: string; rating: number; title: string | null; body: string; scar_type: string | null; created_at: string };
+export const photoUrl = (path: string | null | undefined, query?: Record<string, string>) =>
+  path ? `${process.env.EXPO_PUBLIC_BACKEND_URL}${path}${query ? `?${new URLSearchParams(query).toString()}` : ""}` : null;
+export type Review = {
+  id: string; display_name: string; rating: number; title: string | null; body: string; scar_type: string | null; created_at: string;
+  before_photo_url: string | null; after_photo_url: string | null;
+};
 export type ReviewSummary = { average: number | null; count: number; distribution: Record<string, number>; reviews: Review[] };
 export const getReviews = () => request<ReviewSummary>("/reviews");
 export const createReview = (body: unknown) => request<{ status: string }>("/reviews", { method: "POST", body: JSON.stringify(body) });
+export const lookupReviewOrder = (order_number: string, email: string) =>
+  request<{ photo_token: string; before_photo_id: string | null }>("/reviews/lookup", { method: "POST", body: JSON.stringify({ order_number, email }) });
+
+async function uploadPhoto(path: string, uri: string, fields?: Record<string, string>) {
+  const res = await uploadForm(`${BASE}${path}`, { fields, files: { file: { uri, name: "photo.jpg", mimeType: "image/jpeg" } } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(typeof (data as any)?.detail === "string" ? (data as any).detail : "We couldn't upload your photo. Please try again.");
+  return data as { id: string; kind: "before" | "after" };
+}
+export const uploadBeforePhoto = (orderId: string, token: string, uri: string) => uploadPhoto(`/orders/${orderId}/before-photo`, uri, { token });
+export const uploadReviewPhoto = (order_number: string, email: string, kind: "before" | "after", uri: string) =>
+  uploadPhoto("/review-photos", uri, { order_number, email, kind });
 export const createClinicApplication = (body: unknown) =>
   request<{ id: string; clinic_name: string }>("/clinic-applications", { method: "POST", body: JSON.stringify(body) });
 export const getOrder = (id: string) => request<Order>(`/orders/${id}`);

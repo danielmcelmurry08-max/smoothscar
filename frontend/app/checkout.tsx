@@ -56,7 +56,9 @@ export default function Checkout() {
   const tiers = TIERS[plan];
   const [promo, setPromo] = useState<CodePreview | null>(null);
   const subtotal = unit * qty;
-  const discount = promo ? Math.min(promo.kind === "referral" ? 25 : unit, subtotal) : 0;
+  const discount = promo
+    ? Math.min(promo.kind === "referral" ? 25 : promo.kind === "review" ? Math.round((prices.single * (promo.percent ?? 25)) / 100) : unit, subtotal)
+    : 0;
   const total = subtotal - discount;
 
   const fields: { key: FieldKey; label: string; placeholder: string; keyboard?: "email-address" | "phone-pad" | "number-pad"; auto?: any }[] = [
@@ -98,7 +100,7 @@ export default function Checkout() {
         },
       });
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace({ pathname: "/order/[id]", params: { id: order.id } });
+      router.replace({ pathname: "/order/[id]", params: { id: order.id, ...(order.photo_token ? { t: order.photo_token } : {}) } });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       queryClient.invalidateQueries({ queryKey: ["pricing"] });
@@ -163,7 +165,7 @@ export default function Checkout() {
             </View>
             {discount ? (
               <View style={styles.line} testID="discount-line">
-                <Text style={styles.lineLabel}>{promo?.kind === "referral" ? "Referral discount" : "Reward: 1 free box"}</Text>
+                <Text style={styles.lineLabel}>{promo?.kind === "referral" ? "Referral discount" : promo?.kind === "review" ? "Review thank-you: 25% off one box" : "Reward: 1 free box"}</Text>
                 <Text style={styles.lineValue}>−{formatSGD(discount)}</Text>
               </View>
             ) : null}

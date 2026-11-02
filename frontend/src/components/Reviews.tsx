@@ -3,9 +3,10 @@ import { useRouter } from "expo-router";
 import { PencilSimpleLine, SealCheck } from "phosphor-react-native";
 import { Pressable, ScrollView, Text, View } from "react-native";
 
-import { getReviews } from "../api";
+import { getReviews, photoUrl } from "../api";
 import { fonts, radius, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
+import { ReviewPhotos } from "./ReviewPhotos";
 import { SectionHeader } from "./SectionHeader";
 import { Stars } from "./Stars";
 
@@ -41,6 +42,7 @@ export function Reviews() {
               <Stars value={r.rating} />
               {r.title ? <Text style={styles.title}>{r.title}</Text> : null}
               <Text style={styles.text}>{r.body}</Text>
+              {r.before_photo_url || r.after_photo_url ? <ReviewPhotos before={photoUrl(r.before_photo_url)} after={photoUrl(r.after_photo_url)} /> : null}
               <View style={styles.footer}>
                 <View style={styles.nameRow}>
                   <Text style={styles.name}>{r.display_name}</Text>

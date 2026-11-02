@@ -1,6 +1,9 @@
 """Team admin (passcode): orders dashboard, review moderation and live pricing."""
+import hashlib
+import hmac
 import os
 import secrets
+import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Literal
@@ -9,6 +12,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field, model_validator
+from pymongo import ReturnDocument
 
 from email_service import rate_limited
 from pricing import get_prices, set_prices
@@ -18,12 +22,26 @@ ADMIN_PASSCODE = os.environ["ADMIN_PASSCODE"]
 SGT = timezone(timedelta(hours=8))
 
 
-def check_admin(request: Request, ip: str) -> None:
-    supplied = request.headers.get("x-admin-passcode", "")
+def check_admin(request: Request, ip: str, supplied: str | None = None) -> None:
+    supplied = supplied if supplied is not None else request.headers.get("x-admin-passcode", "")
     if not secrets.compare_digest(supplied.encode(), ADMIN_PASSCODE.encode()):
         if rate_limited(f"admin-fail:{ip}", 10):
             raise HTTPException(429, "Too many attempts. Please try again later.")
         raise HTTPException(401, "Incorrect passcode")
+
+
+def make_view_token(ttl: int = 3600) -> str:
+    exp = str(int(time.time()) + ttl)
+    sig = hmac.new(ADMIN_PASSCODE.encode(), f"view:{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+    return f"{exp}.{sig}"
+
+
+def verify_view_token(token: str) -> bool:
+    exp, _, sig = token.partition(".")
+    if not exp.isdigit() or int(exp) < time.time():
+        return False
+    good = hmac.new(ADMIN_PASSCODE.encode(), f"view:{exp}".encode(), hashlib.sha256).hexdigest()[:32]
+    return secrets.compare_digest(sig.encode(), good.encode())
 
 
 def sg_region(postal: str) -> str:
@@ -144,6 +162,11 @@ def build_router(db, client_ip) -> APIRouter:
         }
         return {"orders": rows, "stats": stats}
 
+    @r.get("/view-token")
+    async def admin_view_token(request: Request):
+        await guard(request)
+        return {"token": make_view_token()}
+
     @r.get("/pricing")
     async def admin_get_pricing(request: Request):
         await guard(request)
@@ -163,6 +186,9 @@ def build_router(db, client_ip) -> APIRouter:
             "id": str(d["_id"]), "order_number": d["order_number"], "customer_email": d["customer_email"],
             "rating": d["rating"], "display_name": d["display_name"], "title": d.get("title"), "body": d["body"],
             "scar_type": d.get("scar_type"), "status": d["status"], "created_at": d["created_at"],
+            "before_photo_url": f"/api/photos/{d['before_photo_id']}" if d.get("before_photo_id") else None,
+            "after_photo_url": f"/api/photos/{d['after_photo_id']}" if d.get("after_photo_id") else None,
+            "reward_code": d.get("reward_code"), "reward_email_status": d.get("reward_email_status"),
         } for d in docs]
 
     @r.post("/reviews/{review_id}")
@@ -175,9 +201,15 @@ def build_router(db, client_ip) -> APIRouter:
         upd = {"status": body.status}
         if body.status == "approved":
             upd["approved_at"] = datetime.now(timezone.utc).isoformat()
-        res = await db.reviews.update_one({"_id": oid}, {"$set": upd})
-        if res.matched_count == 0:
+        review = await db.reviews.find_one_and_update({"_id": oid}, {"$set": upd}, return_document=ReturnDocument.AFTER)
+        if not review:
             raise HTTPException(404, "Review not found")
-        return {"id": review_id, "status": body.status}
+        from reviews import on_review_approved, on_review_hidden
+        if body.status == "approved":
+            await on_review_approved(db, review)
+        else:
+            await on_review_hidden(db, review)
+        review = await db.reviews.find_one({"_id": oid})
+        return {"id": review_id, "status": body.status, "reward_code": review.get("reward_code")}
 
     return r

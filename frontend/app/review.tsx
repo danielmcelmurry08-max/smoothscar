@@ -1,12 +1,13 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, CheckCircle } from "phosphor-react-native";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { createReview } from "@/src/api";
+import { createReview, lookupReviewOrder, photoUrl, uploadReviewPhoto } from "@/src/api";
 import { useAuth } from "@/src/auth";
+import { PhotoSlot } from "@/src/components/PhotoSlot";
 import { Stars } from "@/src/components/Stars";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -35,6 +36,49 @@ export default function WriteReview() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const refs = useRef<Partial<Record<FieldKey, TextInput | null>>>({});
+  type Slot = { id: string | null; uri: string | null; busy: boolean };
+  const [photos, setPhotos] = useState<Record<"before" | "after", Slot>>({ before: { id: null, uri: null, busy: false }, after: { id: null, uri: null, busy: false } });
+  const [photoError, setPhotoError] = useState("");
+  const uploading = photos.before.busy || photos.after.busy;
+  const orderReady = form.order_number.trim().length >= 6 && /^\S+@\S+\.\S+$/.test(form.email.trim());
+  const lookupKey = `${form.order_number.trim().toUpperCase()}|${form.email.trim().toLowerCase()}`;
+
+  const emptySlot: Slot = { id: null, uri: null, busy: false };
+  const firstKey = useRef(true);
+  useEffect(() => {
+    // Photos belong to one order: clear them if the order number or email changes.
+    if (firstKey.current) firstKey.current = false;
+    else {
+      setPhotos({ before: emptySlot, after: emptySlot });
+      setPhotoError("");
+    }
+    if (!orderReady) return;
+    let live = true;
+    lookupReviewOrder(form.order_number.trim(), form.email.trim())
+      .then((r) => {
+        if (live && r.before_photo_id) {
+          setPhotos((p) => ({ ...p, before: { id: r.before_photo_id, uri: photoUrl(`/api/photos/${r.before_photo_id}`, { token: r.photo_token }), busy: false } }));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookupKey, orderReady]);
+
+  const pickPhoto = async (kind: "before" | "after", local: string) => {
+    setPhotoError("");
+    const prev = photos[kind];
+    setPhotos((p) => ({ ...p, [kind]: { id: null, uri: local, busy: true } }));
+    try {
+      const res = await uploadReviewPhoto(form.order_number.trim(), form.email.trim(), kind, local);
+      setPhotos((p) => ({ ...p, [kind]: { id: res.id, uri: local, busy: false } }));
+    } catch (e) {
+      setPhotos((p) => ({ ...p, [kind]: prev }));
+      setPhotoError(e instanceof Error ? e.message : "We couldn't upload your photo. Please try again.");
+    }
+  };
 
   const fields: { key: FieldKey; label: string; placeholder: string; optional?: boolean; multiline?: boolean; keyboard?: "email-address" }[] = [
     { key: "order_number", label: "Order number", placeholder: "BRNA-260601-0001" },
@@ -69,6 +113,8 @@ export default function WriteReview() {
         scar_type: form.scar_type.trim() || null,
         title: form.title.trim() || null,
         body: form.body.trim(),
+        before_photo_id: photos.before.id,
+        after_photo_id: photos.after.id,
       });
       setDone(true);
     } catch (err) {
@@ -143,11 +189,32 @@ export default function WriteReview() {
               </View>
             ))}
 
+            <Text style={[styles.label, styles.photoTitle]}>
+              Before &amp; after photos<Text style={styles.optional}> (optional)</Text>
+            </Text>
+            <Text style={styles.photoHint}>
+              {orderReady ? "Show your progress. Photos appear with your review once our team approves it." : "Enter your order number and email above to add photos."}
+            </Text>
+            <View style={styles.photoRow}>
+              {(["before", "after"] as const).map((k) => (
+                <PhotoSlot
+                  key={k}
+                  label={k === "before" ? "Before" : "After"}
+                  uri={photos[k].uri}
+                  busy={photos[k].busy}
+                  disabled={!orderReady}
+                  onPicked={(u) => pickPhoto(k, u)}
+                  testID={`review-photo-${k}`}
+                />
+              ))}
+            </View>
+            {photoError ? <Text style={styles.errorText} testID="review-photo-error">{photoError}</Text> : null}
+
             {submitError ? <Text style={styles.submitError} testID="review-submit-error">{submitError}</Text> : null}
-            <Pressable testID="review-submit-button" onPress={submit} disabled={loading} style={({ pressed }) => [styles.cta, (pressed || loading) && styles.pressed]}>
-              {loading ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.ctaText}>Submit review</Text>}
+            <Pressable testID="review-submit-button" onPress={submit} disabled={loading || uploading} style={({ pressed }) => [styles.cta, (pressed || loading) && styles.pressed, uploading && styles.disabledCta]}>
+              {loading ? <ActivityIndicator color={colors.onBrandPrimary} /> : <Text style={styles.ctaText}>{uploading ? "Uploading photo…" : "Submit review"}</Text>}
             </Pressable>
-            <Text style={styles.note}>Only your chosen name, rating and review are shown publicly.</Text>
+            <Text style={styles.note}>Only your chosen name, rating, review and approved photos are shown publicly.</Text>
           </View>
         </KeyboardAwareScrollView>
       )}
@@ -171,6 +238,9 @@ const useStyles = makeStyles((c) => ({
   field: { marginTop: space.md },
   label: { fontFamily: fonts.medium, fontSize: 13, color: c.onSurfaceTertiary, marginBottom: space.xs + 2 },
   optional: { fontFamily: fonts.regular, color: c.muted },
+  photoTitle: { marginTop: space.xl },
+  photoHint: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 18, color: c.muted, marginBottom: space.md },
+  photoRow: { flexDirection: "row", gap: space.md },
   input: { minHeight: 52, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, paddingHorizontal: space.lg, fontFamily: fonts.regular, fontSize: 16, color: c.onSurface },
   textarea: { minHeight: 132, paddingTop: space.md, textAlignVertical: "top" },
   inputError: { borderColor: c.error },
@@ -178,6 +248,7 @@ const useStyles = makeStyles((c) => ({
   submitError: { fontFamily: fonts.medium, fontSize: 13, color: c.error, marginTop: space.lg, textAlign: "center" },
   cta: { alignSelf: "stretch", height: 56, borderRadius: radius.pill, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center", marginTop: space.xl },
   pressed: { opacity: 0.85 },
+  disabledCta: { opacity: 0.5 },
   ctaText: { fontFamily: fonts.bold, fontSize: 16, color: c.onBrandPrimary },
   note: { fontFamily: fonts.regular, fontSize: 12, color: c.muted, marginTop: space.md, textAlign: "center" },
 }));

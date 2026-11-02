@@ -1,0 +1,45 @@
+{
+  "summary": "Tested before/after review photos, photo access control, the 25% review reward code and the 3-week review-request email, end to end. Backend: 12 pytest tests in test_review_photos_rewards.py, all passing. They cover before-photo upload (201) and order GET returning before_photo_id; 400 for text/plain, 404 for an unknown or invalid order id, 413 over 8MB; lookup (case-insensitive) returning {order_id, before_photo_id} and 400 for a wrong email; review-photos multipart (after/before 201, kind=middle 422, wrong email 400); photo ACL (public 404, owner order_id 200 image/jpeg, another order's id 404, ?admin=PASS 200, wrong admin 401); review create rejecting a foreign or wrong-kind photo with 400; approve returning RVW+6 chars with the same code on re-approve and after hide/re-approve; photos public after approval and 404 again after hiding; GET /api/reviews returning before/after_photo_url without customer_email; admin list including reward_code; GET /api/codes/RVW returning kind review, percent 25; an order with the code giving discount 75 and total 225 with the correct label; second use 400 and the code then 404. review_request_loop: inserted 22-day-old orders directly into Mongo and restarted the backend. The no-review order was emailed ('sent' via Resend 202), the reviewed one was 'skipped:reviewed', and the 5-day-old one was untouched. After a second restart there was no resend (same timestamp). Partner email to partner@smoothscar.com is attempted, and email_status=failed:undeliverable_recipient, as expected. Frontend at 390x844: on the order page, before-photo-card -> before-photo-library -> file chooser -> 'Before photo saved' plus image, with before_photo_id persisted. On /review, the photo slots are aria-disabled and no chooser opens until the order number and email are entered. The lookup then pre-fills the before photo; the after upload worked and submit sent both photo ids, then review-success. The landing page shows review-photos thumbnails (Before/After badges). Admin Reviews Live shows the photos (?admin=) and '25% code RVWxxxxxx · emailed'. Checkout with a lowercase RVW code shows 'Review thank-you: 25% off one box −$75', total $225, and the order page shows the line. No page errors. No deprecated Expo packages found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/photos/{id}?order_id= and POST /api/orders/{id}/before-photo", "issue": "The order _id acts as the only secret for private scar photos (medical and sensitive). ObjectIds here are near-sequential (e.g. ...24f0, ...24f2, ...24f3 created seconds apart), so they are guessable. Anyone holding or guessing an order id can view a customer's private before photo, or upload and replace it (this overwrites orders.before_photo_id). Consider a random per-order photo token (secrets.token_urlsafe) returned only in the order response, instead of the raw _id."},
+      {"endpoint": "GET /api/photos/{id}?admin=PASSCODE", "issue": "The admin passcode is sent in image URL query strings. It leaks into ingress/proxy access logs, browser history and cache keys. Prefer short-lived signed photo URLs returned by the admin reviews endpoint."},
+      {"endpoint": "on_review_approved (reviews.py:70-80)", "issue": "reward_code is set to 'pending' before issue/send. If issue_review_code or send_email raises, the review stays at 'pending' forever, with no code issued and no retry. Re-approving won't fix it, because $exists is true."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "review.tsx photo state", "issue": "Uploaded photo ids are not cleared when the order number or email changes. The lookup effect also returns early when photos.before.id is set. If a user uploads, then corrects the order number, submit sends ids from the other order, and the server returns 400 'The before photo doesn't belong to this order'. Reset photos when lookupKey changes.", "testID": "review-photo-before", "priority": "medium"},
+      {"component": "review.tsx submit while uploading", "issue": "Submit is not disabled while a photo is uploading (busy). Submitting mid-upload sends after_photo_id=null, and the photo is silently dropped from the review.", "testID": "review-submit-button", "priority": "medium"},
+      {"component": "review.tsx pickPhoto failure", "issue": "A failed re-upload resets the slot to null. This wipes the before photo that was pre-filled from the lookup.", "testID": "review-photo-before", "priority": "low"},
+      {"component": "PhotoSlot shrink()", "issue": "It always resizes to width 1200, so small images get upscaled (a 300px test image was stored at 1200px). Resize only if the width is over 1200.", "testID": "before-photo", "priority": "low"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Order confirmation and /review PhotoSlot", "issues": ["The 'Take photo' label wraps onto 2 lines in the ~90px buttons at 390px (12px font with an icon). Shorten it to 'Camera', stack the buttons, or drop the icon.", "The before-photo card sits below the order summary, mostly below the fold. Given the 'prompt before applying' requirement, consider placing it higher or adding a short banner near the top."]},
+      {"screen": "/review footer note", "issues": ["The copy 'Only your chosen name, rating and review are shown publicly.' is now inaccurate, because approved photos are public too. Update it to mention photos."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_review_photos_rewards.py", "/app/backend/tests/review_request_loop_check.py", "/app/test_reports/pytest/iteration_8.xml"],
+  "action_items": [
+    "review.tsx: reset photos state when order_number or email (lookupKey) changes, and disable submit while either photo is busy.",
+    "Protect private photos with a random per-order photo token rather than the guessable ObjectId (applies to both GET ?order_id and POST before-photo).",
+    "Replace ?admin=PASSCODE in admin image URLs with signed, expiring URLs.",
+    "on_review_approved: handle failures so reward_code doesn't stay 'pending' (try/except that unsets it, or a retry).",
+    "Minor: avoid upscaling in shrink(), fix the 'Take photo' wrap, and update the /review privacy footnote to mention photos."
+  ],
+  "critical_code_review_comments": [
+    "The photo kind and ownership checks on POST /api/reviews are correct, and public visibility flips with approve/hide as specified. Reward issuance is atomic via find_one_and_update on $exists, so it happens only once.",
+    "review_request_loop: the claim via update_one with $exists is idempotent. Note that created_at comparison is an ISO string compare; it works because all timestamps are UTC isoformat with the same offset.",
+    "Rate limits are per real IP: photos 20/h shared between before-photo and review-photos, lookup 30/h, review 10/h. The order-email limit (5/h) uses email_key, which strips +labels, so all delivered+x@resend.dev orders share one bucket. Use unique @example.com emails in tests."
+  ],
+  "updated_files": ["/app/backend/tests/test_review_photos_rewards.py", "/app/backend/tests/review_request_loop_check.py"],
+  "success_rate": {"backend": "100% (12/12 pytest, plus review-request loop check passed)", "frontend": "100% of requested flows working; 4 minor UI bugs and design nits"},
+  "seed_data_creation": "Created TEST_ orders @example.com (BRNA-261102-0137 with before/after photos and a review, approved to get RVWTCFFY4, later rejected/hidden to keep the landing page clean; the code was redeemed in a UI checkout). The pytest reviews were left rejected. Loop-check orders TEST-RRQ-000x were inserted and then cleaned up. The landing page shows 2 approved reviews (Jane T., Photo T.). Backend was restarted twice (this resets the in-memory rate limits).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: export EXPO_PUBLIC_BACKEND_URL=<frontend/.env>; cd /app/backend; python -m pytest tests/test_review_photos_rewards.py. The loop check runs 'python tests/review_request_loop_check.py insert', then 'sudo supervisorctl restart backend', sleep 10, then 'check' or 'cleanup'. On web, use page.expect_file_chooser() around a click on *-library, then set_files.",
+  "rca_of_issue": ""
+}

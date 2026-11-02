@@ -10,7 +10,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.emergent.biornacscar.bqs75v",
-      "usesAppleSignIn": true
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Photograph your scar to track your progress",
+        "NSPhotoLibraryUsageDescription": "Add photos of your scar to your review"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -19,6 +23,7 @@
       },
       "package": "com.emergent.biornacscar.bqs75v",
       "permissions": [
+        "CAMERA",
         "POST_NOTIFICATIONS"
       ]
     },
@@ -49,7 +54,14 @@
           "color": "#004B87"
         }
       ],
-      "expo-apple-authentication"
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Add photos of your scar to your review",
+          "cameraPermission": "Photograph your scar to track your progress"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

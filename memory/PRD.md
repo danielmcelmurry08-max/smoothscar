@@ -77,3 +77,11 @@ Premium medical-cosmetic D2C single-product landing page (mobile web first) for 
   - Orders: period filter, totals, region from SG postal sector, time-of-day (SGT) and by-hour charts, search, CSV export, full customer details, account link, Auto-Ship status.
   - Pricing: live single / bundle / Auto-Ship prices stored in db.settings (`backend/pricing.py`); `/api/pricing` and order creation use them; existing Auto-Ships keep their price.
 - Removed leftover clinic checkout plan from the frontend. Copy spelling/grammar pass.
+
+## Iteration 8 (2026-06)
+- Partner inbox stays partner@smoothscar.com; user must add MX records (email hosting) on smoothscar.com. No alternate inbox given.
+- Review photos via Emergent Object Storage (`backend/storage.py`, EMERGENT_LLM_KEY, path biorna-antiscar/review-photos/{order_id}/uuid). `review_photos` collection; private until the review is approved (then public). Read access: public / ?order_id= owner / ?admin=passcode.
+- Order page: BeforePhotoCard prompts a before photo prior to first patch (`POST /api/orders/{id}/before-photo`). Review form: before/after PhotoSlots (`POST /api/review-photos`, `POST /api/reviews/lookup` pre-fills the saved before photo). Camera permission flow with Open Settings.
+- Approving a review (first time) issues a single-use RVWxxxxxx code = 25% of the current single-box price (one box), emailed to the buyer; shown in admin.
+- Review request email loop: 21 days after each order, once, skipped if already reviewed (`review_request_status` on order).
+- Iteration 9 fixes: random per-order photo_token (returned only on order creation and via review lookup; order page uses ?t=); admin images use a 1-hour signed view token (GET /api/admin/view-token) instead of the passcode; one review code per review (unique index on reward_codes.review_id), reward email sent in the background; the review form clears photos when the order details change and blocks submit while uploading; no upscaling of small images.

@@ -66,7 +66,7 @@ export default function Landing() {
             <View style={styles.refBanner} testID="referral-banner">
               <Text style={styles.refText}>
                 {refInfo.kind === "referral" ? "A friend sent you " : "Your reward: "}
-                <Text style={styles.refStrong}>{refInfo.kind === "referral" ? "$25 off" : "1 free box"}</Text>
+                <Text style={styles.refStrong}>{refInfo.kind === "referral" ? "$25 off" : refInfo.label}</Text>
                 {refInfo.kind === "referral" ? " your first order" : ""} — code {refInfo.code} will be applied automatically at checkout.
               </Text>
             </View>

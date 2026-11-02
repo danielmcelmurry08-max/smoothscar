@@ -9,6 +9,8 @@ from pymongo.errors import DuplicateKeyError
 ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 REFERRAL_PREFIX = "BIO"
 REWARD_PREFIX = "FREE"
+REVIEW_PREFIX = "RVW"
+REVIEW_PERCENT = 25
 FRIEND_DISCOUNT = 25
 FRIENDS_PER_REWARD = 3
 
@@ -42,8 +44,35 @@ async def ensure_referral_code(db, owner_key: str, owner_email: str, order_id: s
     raise HTTPException(500, "Could not create referral code")
 
 
+async def issue_review_code(db, owner_key: str, review_id: str) -> str:
+    """One code per review (unique index on review_id); returns the existing code on repeat calls."""
+    for _ in range(5):
+        existing = await db.reward_codes.find_one({"review_id": review_id})
+        if existing:
+            return existing["code"]
+        code = _gen(REVIEW_PREFIX)
+        try:
+            await db.reward_codes.insert_one({
+                "code": code, "kind": "review", "owner_key": owner_key, "review_id": review_id, "used": False,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            return code
+        except DuplicateKeyError:
+            continue
+    raise HTTPException(500, "Could not create review code")
+
+
+def review_discount(msrp: int, subtotal: int) -> int:
+    return min(round(msrp * REVIEW_PERCENT / 100), subtotal)
+
+
 async def preview_code(db, raw: str) -> dict:
     code = normalize(raw)
+    if code.startswith(REVIEW_PREFIX):
+        doc = await db.reward_codes.find_one({"code": code, "kind": "review"})
+        if not doc or doc.get("used"):
+            raise HTTPException(404, "This review code is invalid or already used")
+        return {"code": code, "kind": "review", "label": f"{REVIEW_PERCENT}% off one box", "percent": REVIEW_PERCENT}
     if code.startswith(REWARD_PREFIX):
         doc = await db.reward_codes.find_one({"code": code})
         if not doc or doc.get("used"):
@@ -54,9 +83,18 @@ async def preview_code(db, raw: str) -> dict:
     raise HTTPException(404, "Code not found")
 
 
-async def apply_code(db, raw: str, customer_key: str, unit_price: int, subtotal: int) -> tuple[str, str, int, dict]:
+async def apply_code(db, raw: str, customer_key: str, unit_price: int, subtotal: int, msrp: int = 0) -> tuple[str, str, int, dict]:
     """Validates + reserves the code. Returns (code, kind, discount, doc)."""
     code = normalize(raw)
+    if code.startswith(REVIEW_PREFIX):
+        doc = await db.reward_codes.find_one_and_update(
+            {"code": code, "kind": "review", "used": False},
+            {"$set": {"used": True, "used_at": datetime.now(timezone.utc).isoformat()}},
+            return_document=ReturnDocument.AFTER,
+        )
+        if not doc:
+            raise HTTPException(400, "This review code is invalid or already used")
+        return code, "review", review_discount(msrp, subtotal), doc
     if code.startswith(REWARD_PREFIX):
         doc = await db.reward_codes.find_one_and_update(
             {"code": code, "used": False},

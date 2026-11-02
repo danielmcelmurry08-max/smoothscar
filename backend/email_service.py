@@ -8,7 +8,7 @@ import time
 from collections import defaultdict, deque
 from html import escape
 from html.parser import HTMLParser
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import httpx
 from dotenv import load_dotenv
@@ -222,7 +222,9 @@ def order_confirmation_email(order) -> tuple[str, str]:
         f'<tr><td style="padding:16px;font-size:15px;font-weight:700;color:{BRAND}">Total</td>'
         f'<td style="padding:16px;text-align:right;font-size:20px;font-weight:900;color:{INK}">${order.total:,}</td></tr></table>'
         f'{share}'
-        f'<p style="margin:20px 0 0;font-size:14px;color:{MUTED}"><strong style="color:{INK}">How to use (best before bed):</strong> clean and dry the skin, '
+        f'<p style="margin:20px 0 0;font-size:14px;color:{MUTED}"><strong style="color:{INK}">Before your first patch:</strong> take a photo of your scar in good light. '
+        f'It stays private, and in a few weeks you can compare it with your results.</p>'
+        f'<p style="margin:12px 0 0;font-size:14px;color:{MUTED}"><strong style="color:{INK}">How to use (best before bed):</strong> clean and dry the skin, '
         f'apply the patch on the scar and press gently for 30 seconds. Leave on for 8–12 hours, then replace daily until satisfied. '
         f'Do not use on open wounds.</p>'
     )
@@ -259,3 +261,38 @@ def clinic_application_email(app) -> tuple[str, str]:
         f'<p style="margin:4px 0 0;font-size:15px;white-space:pre-wrap">{escape(app.message or "—")}</p>'
     )
     return f"New clinic partner application: {app.clinic_name}", _shell("New clinic partner application", inner)
+
+
+def _button(href: str, label: str) -> str:
+    return (
+        f'<table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:20px"><tr>'
+        f'<td style="background:{BRAND};border-radius:999px"><a href="{escape(href)}" '
+        f'style="display:inline-block;padding:14px 28px;color:#FFFFFF;font-size:15px;font-weight:700;text-decoration:none">{escape(label)}</a></td></tr></table>'
+    )
+
+
+def review_request_email(order: dict, percent: int) -> tuple[str, str]:
+    first = order["customer"]["full_name"].split(" ")[0]
+    link = f"{SITE_URL.rstrip('/')}/review?{urlencode({'order': order['order_number'], 'email': order['customer']['email'], 'name': first})}"
+    inner = (
+        f'<p style="margin:0">Hi {escape(first)}, it&rsquo;s been about three weeks since your order {escape(order["order_number"])}. '
+        f'How is your scar looking?</p>'
+        f'<p style="margin:16px 0 0">Share a 1–5 star rating and a few words about your results. You can add your before photo and an after photo, too.</p>'
+        f'<p style="margin:16px 0 0">As a thank-you, once your review is approved we&rsquo;ll email you a code for '
+        f'<strong>{percent}% off a box</strong>.</p>'
+        f'{_button(link, "Rate my results")}'
+        f'<p style="margin:20px 0 0;font-size:14px;color:{MUTED}">Your photos stay private unless you add them to your review. '
+        f'Only your chosen name, rating, review and photos are shown publicly.</p>'
+    )
+    return f"How are your results with {EMAIL_FROM_NAME}?", _shell("How are your results?", inner)
+
+
+def review_reward_email(name: str, code: str, percent: int) -> tuple[str, str]:
+    inner = (
+        f'<p style="margin:0">Hi {escape(name)}, thank you for reviewing BioRNA Antiscar. Your review is now live.</p>'
+        f'<p style="margin:16px 0 0">Here is your code for <strong>{percent}% off one box</strong> at full price. Enter it at checkout on your next order:</p>'
+        f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background:#E5F0FA;border-radius:12px">'
+        f'<tr><td align="center" style="padding:20px;font-size:26px;font-weight:900;letter-spacing:3px;color:{BRAND}">{escape(code)}</td></tr></table>'
+        f'<p style="margin:16px 0 0;font-size:14px;color:{MUTED}">Single use, on any plan. It can&rsquo;t be combined with another code.</p>'
+    )
+    return f"Your {percent}% off code from {EMAIL_FROM_NAME}", _shell("Thank you for your review", inner)

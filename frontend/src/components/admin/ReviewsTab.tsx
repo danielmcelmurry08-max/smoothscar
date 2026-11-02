@@ -2,9 +2,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from "react-native";
 
-import { AdminReview, decideReview, getAdminReviews, ReviewStatus } from "../../api";
+import { AdminReview, decideReview, getAdminReviews, getAdminViewToken, photoUrl, ReviewStatus } from "../../api";
 import { fonts, radius, space } from "../../fonts";
 import { makeStyles, useTheme } from "../../theme";
+import { ReviewPhotos } from "../ReviewPhotos";
 import { Stars } from "../Stars";
 import { useAdminStyles } from "./shared";
 
@@ -27,6 +28,9 @@ export function ReviewsTab({ passcode }: { passcode: string }) {
     queryKey: ["admin-reviews", passcode, filter],
     queryFn: () => getAdminReviews(passcode, filter),
   });
+
+  const { data: view } = useQuery({ queryKey: ["admin-view-token", passcode], queryFn: () => getAdminViewToken(passcode), staleTime: 30 * 60_000 });
+  const viewQuery = view ? { admin_token: view.token } : undefined;
 
   const decide = async (r: AdminReview, status: ReviewStatus) => {
     setError("");
@@ -71,6 +75,17 @@ export function ReviewsTab({ passcode }: { passcode: string }) {
           </View>
           {item.title ? <Text style={[styles.cardTitle, { marginTop: space.sm }]}>{item.title}</Text> : null}
           <Text style={styles.message}>{item.body}</Text>
+          {viewQuery && (item.before_photo_url || item.after_photo_url) ? (
+            <View style={{ marginTop: space.sm }}>
+              <ReviewPhotos before={photoUrl(item.before_photo_url, viewQuery)} after={photoUrl(item.after_photo_url, viewQuery)} />
+            </View>
+          ) : null}
+          {item.reward_code ? (
+            <Text style={styles.meta} testID={`admin-review-code-${item.id}`}>
+              25% code {item.reward_code}
+              {item.reward_email_status === "sent" ? " · emailed" : item.reward_email_status === "sending" ? " · sending email…" : " · email not delivered"}
+            </Text>
+          ) : null}
           <Text style={styles.meta}>
             {item.display_name}
             {item.scar_type ? ` · ${item.scar_type}` : ""} · {item.order_number}

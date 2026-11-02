@@ -6,6 +6,7 @@ import Animated, { ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getOrder } from "@/src/api";
+import { BeforePhotoCard } from "@/src/components/BeforePhotoCard";
 import { ReminderCard } from "@/src/components/ReminderCard";
 import { ReferralCard } from "@/src/components/ReferralCard";
 import { CONTACT_EMAIL, formatSGD } from "@/src/content";
@@ -19,7 +20,7 @@ export default function OrderConfirmation() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, t } = useLocalSearchParams<{ id: string; t?: string }>();
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ["order", id], queryFn: () => getOrder(id), retry: false });
 
   if (isLoading) {
@@ -65,6 +66,8 @@ export default function OrderConfirmation() {
           <View style={styles.numberPill}>
             <Text style={styles.numberText} testID="order-number">{data.order_number}</Text>
           </View>
+
+          {t ? <BeforePhotoCard orderId={data.id} token={t} existingPhotoId={data.before_photo_id} /> : null}
 
           <View style={styles.card} testID="order-details">
             {rows.map(([k, v]) => (

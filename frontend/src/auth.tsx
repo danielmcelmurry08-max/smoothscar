@@ -6,6 +6,7 @@ import { Platform } from "react-native";
 
 import { appleSignIn, exchangeGoogleSession, getMe, logoutApi, setAuthToken, setOnUnauthorized, User } from "./api";
 import { storage } from "./utils/storage";
+import { queryClient } from "./query-client";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clear = useCallback(async () => {
     await storage.secureRemove(TOKEN_KEY);
     setAuthToken(null);
+    queryClient.clear();
     setUser(null);
   }, []);
 

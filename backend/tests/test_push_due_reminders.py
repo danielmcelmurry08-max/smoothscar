@@ -68,8 +68,12 @@ def test_subscribe_ship_notice_cycles_and_no_reorder():
     o = _order(plan="subscribe", qty=2)
     assert _kinds(o, _at(11, 12)) == []
     assert _kinds(o, _at(12, 12)) == ["ship"]
-    assert _kinds(dict(o, ship_notice_cycle=0), _at(13, 12)) == []
-    assert _kinds(dict(o, ship_notice_cycle=0), _at(26, 12)) == ["ship"]
+    assert _kinds(dict(o, ship_notice_for="2026-01-24"), _at(13, 12)) == []
+    nxt = datetime(2026, 2, 7, 10, 0, tzinfo=SGT).astimezone(timezone.utc).isoformat()
+    assert _kinds(dict(o, ship_notice_for="2026-01-24", next_ship_date=nxt), _at(26, 12)) == ["ship"]
+    # paused / cancelled plans get no ship notice and no nightly reminder
+    assert _kinds(dict(o, autoship_status="paused"), _at(12, 22)) == []
+    assert _kinds(dict(o, autoship_status="cancelled"), _at(12, 22)) == []
     # nightly continues indefinitely for subscriptions
     assert "nightly" in _kinds(o, _at(40, 22))
     assert "reorder" not in _kinds(o, _at(40, 22))

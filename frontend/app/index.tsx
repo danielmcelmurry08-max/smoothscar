@@ -11,6 +11,7 @@ import { CheckoutWidget, Selection } from "@/src/components/CheckoutWidget";
 import { Evidence } from "@/src/components/Evidence";
 import { Footer } from "@/src/components/Footer";
 import { Hero } from "@/src/components/Hero";
+import { Reviews } from "@/src/components/Reviews";
 import { StickyCTA, STICKY_HEIGHT } from "@/src/components/StickyCTA";
 import { Testimonials } from "@/src/components/Testimonials";
 import { TrustInfo } from "@/src/components/TrustInfo";
@@ -75,6 +76,7 @@ export default function Landing() {
             <Evidence />
           </View>
           <Testimonials />
+          <Reviews />
           <View onLayout={mark("buy")}>
             <CheckoutWidget
               value={selection}

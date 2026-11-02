@@ -7,8 +7,9 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { getMyOrders, getMyReferral } from "@/src/api";
+import { getMyAutoShips, getMyOrders, getMyReferral } from "@/src/api";
 import { useAuth } from "@/src/auth";
+import { AutoShipCard } from "@/src/components/AutoShipCard";
 import { ReferralCard } from "@/src/components/ReferralCard";
 import { formatSGD } from "@/src/content";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
@@ -75,7 +76,8 @@ function AccountPanel() {
   const { user, signOut } = useAuth();
   const orders = useQuery({ queryKey: ["my-orders", user?.user_id], queryFn: getMyOrders });
   const referral = useQuery({ queryKey: ["my-referral", user?.user_id], queryFn: getMyReferral });
-  const autoShip = orders.data?.filter((o) => o.plan === "subscribe") ?? [];
+  const autoShipKey = ["my-autoships", user?.user_id] as const;
+  const autoShips = useQuery({ queryKey: autoShipKey, queryFn: getMyAutoShips });
 
   return (
     <View style={styles.column} testID="account-panel">
@@ -94,11 +96,17 @@ function AccountPanel() {
         </Pressable>
       </View>
 
-      {autoShip.length ? (
-        <View style={styles.autoShip} testID="account-autoship">
-          <Text style={styles.sectionLabel}>Auto-Ship</Text>
-          {autoShip.map((o) => (
-            <Text key={o.id} style={styles.autoText}>{o.quantity} boxes · every 2 weeks · {formatSGD(o.total)} per shipment</Text>
+      {autoShips.isLoading ? <ActivityIndicator style={styles.loader} color={colors.brandPrimary} testID="account-autoship-loading" /> : null}
+      {autoShips.isError ? (
+        <Pressable onPress={() => autoShips.refetch()} testID="account-autoship-retry" style={styles.order}>
+          <Text style={styles.orderMeta}>Couldn&apos;t load your Auto-Ship. Tap to retry.</Text>
+        </Pressable>
+      ) : null}
+      {autoShips.data?.length ? (
+        <View testID="account-autoship">
+          <Text style={[styles.sectionLabel, styles.ordersLabel]}>Manage Auto-Ship</Text>
+          {autoShips.data.map((p) => (
+            <AutoShipCard key={p.id} plan={p} queryKey={autoShipKey} />
           ))}
         </View>
       ) : null}

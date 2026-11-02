@@ -216,7 +216,7 @@ def order_confirmation_email(order) -> tuple[str, str]:
     ) if order.referral_code else ""
     inner = (
         f'<p style="margin:0">Hi {escape(c.full_name.split(" ")[0])}, thank you for your order. '
-        f'We&rsquo;re preparing your BioRNA-C Micro-Tips Patches for dispatch within 1–2 working days.</p>'
+        f'We&rsquo;re preparing your BioRNA-C micro-tips patches for dispatch within 1–2 working days.</p>'
         f'{_rows(rows)}'
         f'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#E5F0FA;border-radius:12px">'
         f'<tr><td style="padding:16px;font-size:15px;font-weight:700;color:{BRAND}">Total</td>'

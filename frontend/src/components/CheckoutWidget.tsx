@@ -3,8 +3,9 @@ import { ArrowRight, Buildings, CheckCircle, CircleIcon as Circle, Handshake, Lo
 import { useState } from "react";
 import { Platform, Pressable, Text, View } from "react-native";
 
-import { formatSGD, PlanId, PRICING, SUB_TIERS, unitPriceFor } from "../content";
+import { formatSGD, PlanId, PLAN_NOTES, SUB_TIERS, unitPriceFor } from "../content";
 import { fonts, radius, space } from "../fonts";
+import { usePrices } from "../pricing";
 import { makeStyles, useTheme } from "../theme";
 import { PayBadges } from "./PayBadges";
 import { SectionHeader } from "./SectionHeader";
@@ -18,9 +19,10 @@ export function CheckoutWidget({ value, onChange, onProceed, onApply }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [mode, setMode] = useState<"personal" | "partner">("personal");
-  const total = unitPriceFor(value.plan, value.qty) * value.qty;
+  const prices = usePrices();
+  const total = unitPriceFor(prices, value.plan, value.qty) * value.qty;
   const selectedKey = value.plan === "subscribe" ? "autoship" : value.qty >= 2 ? "bundle" : "single";
-  const bundleSave = (PRICING.one_time.unit - PRICING.one_time.bundle) * 2;
+  const bundleSave = (prices.single - prices.bundle) * 2;
 
   const Option = ({ id, sel, title, sub, price, priceNote, badge }: { id: string; sel: Selection; title: string; sub: string; price: string; priceNote: string; badge?: string }) => {
     const selected = selectedKey === id;
@@ -91,24 +93,24 @@ export function CheckoutWidget({ value, onChange, onProceed, onApply }: Props) {
         {mode === "personal" ? (
           <View style={styles.body}>
             <Text style={styles.heading}>Continuous Scar Care</Text>
-            <Text style={styles.desc}>7 patches per box — one patch nightly. Bundle or auto-ship to keep your regimen going.</Text>
+            <Text style={styles.desc}>7 patches per box — one patch nightly. Choose a bundle or Auto-Ship to keep your routine going.</Text>
             <View style={styles.options} role="radiogroup">
-              <Option id="single" sel={{ plan: "one_time", qty: 1 }} title="Single box" sub={PRICING.one_time.note} price={formatSGD(PRICING.one_time.unit)} priceNote="1 box" />
+              <Option id="single" sel={{ plan: "one_time", qty: 1 }} title="Single box" sub={PLAN_NOTES.one_time} price={formatSGD(prices.single)} priceNote="1 box" />
               <Option
                 id="bundle"
                 sel={{ plan: "one_time", qty: 2 }}
                 title="2-box bundle"
-                sub={`${formatSGD(PRICING.one_time.bundle)} each · 2 weeks of nightly use`}
-                price={formatSGD(PRICING.one_time.bundle * 2)}
+                sub={`${formatSGD(prices.bundle)} each · 2 weeks of nightly use`}
+                price={formatSGD(prices.bundle * 2)}
                 priceNote="2 boxes"
-                badge={`SAVE ${formatSGD(bundleSave)}`}
+                badge={bundleSave > 0 ? `SAVE ${formatSGD(bundleSave)}` : undefined}
               />
               <Option
                 id="autoship"
                 sel={{ plan: "subscribe", qty: value.plan === "subscribe" ? value.qty : SUB_TIERS[0] }}
                 title="Auto-Ship every 2 weeks"
-                sub={`${formatSGD(PRICING.subscribe.unit)} per box · multi-box · cancel anytime`}
-                price={formatSGD(PRICING.subscribe.unit)}
+                sub={`${formatSGD(prices.autoship)} per box · multi-box · cancel anytime`}
+                price={formatSGD(prices.autoship)}
                 priceNote="/ box"
                 badge="BEST VALUE"
               />

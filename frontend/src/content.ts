@@ -1,17 +1,18 @@
-export type PlanId = "one_time" | "subscribe" | "clinic";
+export type PlanId = "one_time" | "subscribe";
 
-export const PRICING = {
-  one_time: { unit: 300, bundle: 275, label: "One-time purchase", note: "7 patches per box · ships in 1–2 days" },
-  subscribe: { unit: 275, label: "Auto-Ship", note: "Ships every 2 weeks · cancel anytime" },
-  clinic: { unit: 185, label: "Provider partner price", note: "Per box · minimum 2 boxes" },
+// Live prices come from the server (editable in /admin); these are only shown until it responds.
+export type Prices = { single: number; bundle: number; autoship: number };
+export const DEFAULT_PRICES: Prices = { single: 300, bundle: 275, autoship: 275 };
+
+export const PLAN_NOTES: Record<PlanId, string> = {
+  one_time: "7 patches per box · ships in 1–2 days",
+  subscribe: "Ships every 2 weeks · cancel anytime",
 };
 
-export const unitPriceFor = (plan: PlanId, qty: number) =>
-  plan === "one_time" ? (qty >= 2 ? PRICING.one_time.bundle : PRICING.one_time.unit) : PRICING[plan].unit;
+export const unitPriceFor = (p: Prices, plan: PlanId, qty: number) =>
+  plan === "one_time" ? (qty >= 2 ? p.bundle : p.single) : p.autoship;
 
 export const SUB_TIERS = [2, 4];
-
-export const CLINIC_TIERS = [2, 5, 10];
 
 export const formatSGD = (n: number) => `$${n.toLocaleString("en-SG")}`;
 
@@ -75,7 +76,7 @@ export const TESTIMONIALS = [
   { id: "rajan", name: "Rajan P.", scar: "Knee keloid", text: "I had a keloid on my knee for years. Steroid jabs didn't last and were very painful. With BioRNA it feels less rigid and doesn't jut out as sharply when I bend my knee." },
   { id: "michelle", name: "Michelle L.", scar: "Chest keloid", text: "Silicone sheets never stayed on because I sweat easily. With BioRNA I only use it at night. After a while the keloid feels less bulky." },
   { id: "xinyu", name: "C. Xinyu", scar: "Thyroid surgery scar", text: "Silicone sheets would curl up every time. After giving BioRNA a go, the thick part slowly softened. It feels more even and less noticeable." },
-  { id: "marcus", name: "Marcus L.", scar: "Keyhole surgery keloid", text: "I was hesitating about another injection so I tried BioRNA first. After a few weeks the lump feels flatter when I run my thumb over it." },
+  { id: "marcus", name: "Marcus L.", scar: "Keyhole surgery keloid", text: "I was hesitant about another injection, so I tried BioRNA first. After a few weeks the lump feels flatter when I run my thumb over it." },
 ];
 
 export const CITATION = "Annals of the Academy of Medicine, Singapore 2024;53:113-6";
@@ -99,7 +100,7 @@ export const ACCORDIONS = [
       "1. Apply patch — dissolvable micro-tips made of hyaluronic acid carry RNA nanoplexes.",
       "2. Micro-tips engage — they painlessly enter just beneath the skin surface.",
       "3. Ingredient transfer — the micro-tips dissolve and release the RNA nanoplex where the scar forms, targeting the root cause rather than just the surface.",
-      "4. Reduce appearance of scar — raised scars flatten, soften and blend toward your natural skin tone.",
+      "4. Reduced scar appearance — raised scars flatten, soften and blend toward your natural skin tone.",
       "Steroid-free and painless. Developed by RNAscence Biotechnology, a spin-off from NTU & National Skin Centre.",
     ],
   },

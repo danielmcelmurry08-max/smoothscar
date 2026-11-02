@@ -82,6 +82,14 @@ export default function OrderConfirmation() {
           <ReminderCard orderId={data.id} enabled={!!data.reminders_enabled} onEnabled={() => refetch()} />
           {data.referral_code ? <ReferralCard code={data.referral_code} /> : null}
 
+          <Pressable
+            testID="order-write-review-button"
+            onPress={() => router.push({ pathname: "/review", params: { order: data.order_number, email: data.customer.email, name: data.customer.full_name.split(" ")[0] } })}
+            style={styles.secondary}
+          >
+            <Text style={styles.secondaryText}>Tried BioRNA? Write a review</Text>
+          </Pressable>
+
           <View style={styles.help}>
             <EnvelopeSimple size={18} color={colors.brandPrimary} />
             <Text style={styles.helpText}>Questions? {CONTACT_EMAIL}</Text>

@@ -20,11 +20,12 @@ from push_service import register_device, reminder_loop, reminders_started_now, 
 from email_service import referral_reward_email  # noqa: E402
 from referrals import apply_code, ensure_referral_code, preview_code, record_referral, referral_status, release_claim, release_reward  # noqa: E402
 import asyncio  # noqa: E402
-import secrets  # noqa: E402
 import re  # noqa: E402
 from auth import build_router as build_auth_router, ensure_auth_indexes, get_current_user  # noqa: E402
-
-ADMIN_PASSCODE = os.environ["ADMIN_PASSCODE"]
+from autoship import build_router as build_autoship_router  # noqa: E402
+from admin import build_router as build_admin_router, check_admin  # noqa: E402
+from pricing import build_plans, get_prices  # noqa: E402
+from reviews import build_router as build_reviews_router  # noqa: E402
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = client[os.environ['DB_NAME']]
@@ -56,17 +57,6 @@ class BaseDocument(BaseModel):
         return cls.model_validate(doc)
 
 
-# Server-side source of truth for pricing (SGD)
-PLANS = {
-    "one_time": {"name": "BioRNA-C · One-time purchase", "unit_price": 300, "bundle_price": 275, "min_qty": 1, "max_qty": 10,
-                 "interval": None, "allowed_qty": None},
-    "subscribe": {"name": "Auto-Ship · Every 2 Weeks", "unit_price": 275, "min_qty": 2, "max_qty": 4,
-                  "interval": "Every 2 weeks", "allowed_qty": [2, 4]},
-    "clinic": {"name": "Clinic & Multi-Pack Program", "unit_price": 185, "min_qty": 2, "max_qty": 100,
-               "interval": None, "allowed_qty": [2, 5, 10]},
-}
-
-
 class Customer(BaseModel):
     full_name: str = Field(min_length=2, max_length=120)
     email: EmailStr
@@ -82,6 +72,7 @@ class OrderCreate(BaseModel):
     payment_method: Literal["apple_pay", "google_pay", "card"]
     customer: Customer
     code: Optional[str] = Field(default=None, max_length=20)
+    expected_unit_price: Optional[int] = None
 
 
 class Order(BaseDocument):
@@ -122,7 +113,8 @@ async def root():
 
 @api_router.get("/pricing")
 async def pricing():
-    return {"currency": "SGD", "plans": PLANS}
+    prices = await get_prices(db)
+    return {"currency": "SGD", "prices": prices, "plans": build_plans(prices)}
 
 
 def client_ip(request: Request) -> str:
@@ -148,17 +140,17 @@ async def send_and_record(collection: str, doc_id: str, **kwargs):
 
 @api_router.post("/orders", response_model=Order, response_model_by_alias=False)
 async def create_order(payload: OrderCreate, request: Request, background: BackgroundTasks):
-    plan = PLANS[payload.plan]
+    plan = build_plans(await get_prices(db))[payload.plan]
     if payload.quantity < plan["min_qty"] or payload.quantity > plan["max_qty"]:
         raise HTTPException(400, f"Quantity must be between {plan['min_qty']} and {plan['max_qty']}")
     if plan["allowed_qty"] and payload.quantity not in plan["allowed_qty"]:
         raise HTTPException(400, f"Quantity must be one of {plan['allowed_qty']}")
-    if payload.plan == "clinic" and not (payload.customer.clinic_name or "").strip():
-        raise HTTPException(400, "Clinic / provider name is required for partner orders")
     ip = client_ip(request)
     if rate_limited(f"order:{ip}", 20) or rate_limited(f"order-email:{email_key(payload.customer.email)}", 5):
         raise HTTPException(429, "Too many orders. Please try again later.")
     unit_price = plan.get("bundle_price", plan["unit_price"]) if payload.quantity >= 2 else plan["unit_price"]
+    if payload.expected_unit_price is not None and payload.expected_unit_price != unit_price:
+        raise HTTPException(409, f"Our prices have just been updated to ${unit_price:,} per box. Please review your total and try again.")
     subtotal = unit_price * payload.quantity
     shipping = 0
     customer_key = email_key(payload.customer.email)
@@ -235,12 +227,7 @@ async def get_referral(code: str):
 
 @api_router.get("/admin/clinic-applications")
 async def admin_applications(request: Request):
-    ip = client_ip(request)
-    supplied = request.headers.get("x-admin-passcode", "")
-    if not secrets.compare_digest(supplied.encode(), ADMIN_PASSCODE.encode()):
-        if rate_limited(f"admin-fail:{ip}", 10):
-            raise HTTPException(429, "Too many attempts. Please try again later.")
-        raise HTTPException(401, "Incorrect passcode")
+    check_admin(request, client_ip(request))
     docs = await db.clinic_applications.find({}).sort("_id", -1).limit(200).to_list(200)
     fields = list(ClinicApplicationCreate.model_fields) + ["status", "created_at", "email_status"]
     return [{"id": str(d["_id"]), **{f: d.get(f) for f in fields}} for d in docs]
@@ -361,6 +348,9 @@ async def disable_reminders(order_id: str):
 
 app.include_router(api_router)
 app.include_router(build_auth_router(db))
+app.include_router(build_autoship_router(db))
+app.include_router(build_admin_router(db, client_ip))
+app.include_router(build_reviews_router(db, client_ip, email_key))
 
 app.add_middleware(
     CORSMiddleware,
@@ -384,6 +374,8 @@ async def ensure_indexes():
     await db.referrals.create_index("code", unique=True)
     await db.referrals.create_index("owner_key", unique=True)
     await db.reward_codes.create_index("code", unique=True)
+    await db.reviews.create_index("order_number", unique=True)
+    await db.reviews.create_index([("status", 1), ("approved_at", -1)])
     await db.referral_claims.create_index("customer_key", unique=True)
     await ensure_auth_indexes(db)
     asyncio.create_task(reminder_loop(db))

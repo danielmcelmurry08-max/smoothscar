@@ -63,6 +63,26 @@ async def safe_push(recipients: list[str], data: dict, idempotency_key: str | No
         return False
 
 
+def next_ship(order: dict) -> datetime:
+    """Next Auto-Ship date (UTC). Defaults to 14 days after the order was placed."""
+    if order.get("next_ship_date"):
+        return datetime.fromisoformat(order["next_ship_date"])
+    base = datetime.fromisoformat(order.get("created_at") or order["reminders_started_at"])
+    return base + timedelta(days=SHIP_CYCLE_DAYS)
+
+
+async def advance_autoships(db, now: datetime) -> None:
+    """Simulated fulfilment: roll each active Auto-Ship whose date has passed to its next cycle."""
+    async for o in db.orders.find({"plan": "subscribe", "autoship_status": {"$in": [None, "active"]}}):
+        nxt = next_ship(o)
+        shipped = 0
+        while nxt <= now:
+            nxt += timedelta(days=SHIP_CYCLE_DAYS)
+            shipped += 1
+        if shipped or not o.get("next_ship_date"):
+            await db.orders.update_one({"_id": o["_id"]}, {"$set": {"next_ship_date": nxt.isoformat()}, "$inc": {"shipments_sent": shipped}})
+
+
 def _due_reminders(order: dict, now: datetime) -> list[tuple[str, dict, str]]:
     """Returns [(kind, data, idempotency_key)] due for this order right now."""
     out = []
@@ -72,7 +92,7 @@ def _due_reminders(order: dict, now: datetime) -> list[tuple[str, dict, str]]:
     today = local.date().isoformat()
     is_sub = order["plan"] == "subscribe"
     regimen_days = order["quantity"] * PATCHES_PER_BOX
-    in_regimen = is_sub or day_index < regimen_days
+    in_regimen = ((order.get("autoship_status") or "active") == "active") if is_sub else day_index < regimen_days
     after_nightly_time = (local.hour, local.minute) >= (NIGHTLY_HOUR, NIGHTLY_MINUTE)
 
     if in_regimen and after_nightly_time and order.get("last_nightly_date") != today and day_index >= 0:
@@ -83,13 +103,14 @@ def _due_reminders(order: dict, now: datetime) -> list[tuple[str, dict, str]]:
         }, f"nightly-{order['_id']}-{today}"))
 
     if is_sub:
-        cycle = day_index // SHIP_CYCLE_DAYS
-        if day_index % SHIP_CYCLE_DAYS >= SHIP_CYCLE_DAYS - 2 and order.get("ship_notice_cycle", -1) < cycle:
+        nxt = next_ship(order)
+        if (order.get("autoship_status") or "active") == "active" and now >= nxt - timedelta(days=2) \
+                and order.get("ship_notice_for") != nxt.date().isoformat():
             out.append(("ship", {
                 "title": "Your next BioRNA shipment is on its way soon",
-                "message": f"{order['quantity']} boxes ship in 2 days with your auto-ship plan.",
-                "action_url": f"/order/{order['_id']}",
-            }, f"ship-{order['_id']}-{cycle}"))
+                "message": f"{order['quantity']} boxes ship in 2 days with your Auto-Ship plan. Skip or change it in your account.",
+                "action_url": "/account",
+            }, f"ship-{order['_id']}-{nxt.date().isoformat()}"))
     elif not order.get("reorder_sent") and day_index >= regimen_days - 2:
         out.append(("reorder", {
             "title": "Running low on patches",
@@ -104,6 +125,7 @@ async def reminder_loop(db) -> None:
     while True:
         try:
             now = datetime.now(timezone.utc)
+            await advance_autoships(db, now)
             async for order in db.orders.find({"reminders_enabled": True, "push_user_id": {"$exists": True}}):
                 for kind, data, key in _due_reminders(order, now):
                     if retry_after.get(key, now) > now:
@@ -118,8 +140,7 @@ async def reminder_loop(db) -> None:
                     elif kind == "reorder":
                         upd = {"reorder_sent": True}
                     else:
-                        started = datetime.fromisoformat(order["reminders_started_at"])
-                        upd = {"ship_notice_cycle": (now.astimezone(SGT).date() - started.astimezone(SGT).date()).days // SHIP_CYCLE_DAYS}
+                        upd = {"ship_notice_for": next_ship(order).date().isoformat()}
                     await db.orders.update_one({"_id": order["_id"]}, {"$set": upd})
         except Exception as e:
             logger.error(f"Reminder loop error: {e}")

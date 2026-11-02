@@ -63,3 +63,17 @@ Premium medical-cosmetic D2C single-product landing page (mobile web first) for 
 - Orders placed while signed in are linked to the user. My orders also shows orders placed with the exact same email. Checkout pre-fills name and email.
 - Testing: iteration 5 passed 14/14 backend tests and every UI flow. The Apple email takeover fix and the direct-load checkout pre-fill fix were re-checked: pytest 14/14 and a pre-fill check on a direct `/checkout` load. The Google sign-in error message and the 502 for network errors were not re-checked.
 - Push notifications: already integrated in iteration 3 (re-request needed no changes)
+
+## Iteration 6 (2026-06)
+- Manage Auto-Ship (`backend/autoship.py`, `AutoShipCard.tsx`): signed-in customers pause, resume, skip next, change boxes (2 or 4) or cancel (inline confirm) from /account. Next ship date defaults to order date + 14 days; fulfilment is simulated by the reminder loop, which rolls dates forward. Paused and cancelled plans get no nightly or ship pushes. The ship notice now opens /account.
+- Updates are guarded against two changes at once (409 if the plan changed meanwhile); the list shows active plans first.
+- Frontend: error notices in red, refresh after a failed action, Auto-Ship data tied to the signed-in user, cache cleared on sign-out, loading and retry states.
+- Testing: iteration 6 passed 22/22 backend tests and every UI flow. Fixes made afterwards: error colours, refresh after failure, data tied to the user, two-at-once updates, list order and limit, empty-status handling. Re-checked so far: the backend tests pass again (22/22); the UI fixes have not been re-checked.
+
+## Iteration 7 (2026-06)
+- Partner inbox: ADMIN_EMAIL=partner@smoothscar.com. smoothscar.com has NO MX records, so the email provider rejects it as undeliverable; applications are saved and shown in /admin → Partners. Needs email hosting/MX set up on smoothscar.com.
+- Reviews (`backend/reviews.py`): verified buyers only (order number + matching email), 1 per order, 1–5 stars, name, optional headline/scar type. Pending until approved in /admin. Public `GET /api/reviews` (average, count, distribution, latest 30 approved). Landing section `Reviews.tsx`, form `/review`, link from order page.
+- Team dashboard `/admin` (`backend/admin.py`, `src/components/admin/*`): tabs Orders / Reviews / Partners / Pricing.
+  - Orders: period filter, totals, region from SG postal sector, time-of-day (SGT) and by-hour charts, search, CSV export, full customer details, account link, Auto-Ship status.
+  - Pricing: live single / bundle / Auto-Ship prices stored in db.settings (`backend/pricing.py`); `/api/pricing` and order creation use them; existing Auto-Ships keep their price.
+- Removed leftover clinic checkout plan from the frontend. Copy spelling/grammar pass.

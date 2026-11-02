@@ -1,0 +1,44 @@
+{
+  "summary": "Tested the new admin dashboard, verified-buyer reviews, live pricing and partner routing, end to end. Backend: 24 new pytest tests in test_admin_reviews_pricing.py, all passing. They cover pricing defaults and the 401 and 422 validation (0, 5001, bundle>single, missing field); orders using the edited prices (320/290/260: qty1=320, qty3=3x290, subscribe 2x260) and then reset; admin orders shape, region from the postal sector, time_slot, sgt_time, customer and stats consistency (sum(by_hour)==orders, revenue==sum(totals)) and the days filter; reviews returning 400 for a mismatched email or unknown order, 422 for rating 0 or 6, a short body or a 1-char name, case-insensitive order and email, 201 pending, 409 for a duplicate, approved-only public listing, approve/reject/all filters and 404/422 on admin decisions; and clinic applications saved and listed. Partner email_status is failed:undeliverable_recipient for partner@smoothscar.com, as expected (Resend says it can't verify the recipient). Frontend at 390x844: the landing Reviews section shows the summary, cards and write-review-button, and the widget prices come from /api/pricing. A one-time checkout produced an order, and order-write-review-button prefilled /review with order, email and first name. Rating and body validation errors showed, the 4-star label read 'Very good', review-success appeared, and a duplicate or bad order showed review-submit-error with the server message. Admin: a wrong passcode showed 'Incorrect passcode' and login worked by button and by Enter. Orders showed stats, period chips 7/30/90/0, search by order number and by email, and Export CSV downloaded with the correct headers. Reviews: approving moved the review to Live and it appeared on the landing page (avg 4.5, 2 reviews); Hide moved it to Hidden. Partners listed 5 applications. Pricing at 310/280/260 updated the preview and the landing widget ($310/$560/$260), the bundle>single server error message showed, and prices were reset to 300/275/275. A subscribe checkout of 4 boxes gave $1,100 and an Auto-Ship order page. No page errors. Minor UI issues are listed below.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/admin/orders", "issue": "Stats are computed in Python over at most 1000 orders (limit(1000)). Once there are more than 1000 orders in the period, the revenue, region and hour stats silently undercount. Use a Mongo aggregation for the stats and paginate the rows."},
+      {"endpoint": "POST /api/reviews", "issue": "Buyer check uses email_key, which strips +labels and dots. So j.ane+x@example.com matches an order placed as jane@example.com. The order number is still required, so the risk is low, but it is not an exact email match."},
+      {"endpoint": "Partner emails", "issue": "partner@smoothscar.com is rejected by Resend (422 undeliverable_recipient, 'couldn't verify'). The application is saved, but no one is notified until the domain has MX records or the address is verified."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PricingTab", "issue": "No client-side check that bundle <= single. Save stays enabled with bundle 320 > single 300, and the user only finds out after the server returns 422 (the message itself shows correctly). parseInt is also lax ('12.5' becomes 12, '300abc' becomes 300).", "testID": "admin-price-save", "priority": "low"},
+      {"component": "OrderStats revenue tile", "issue": "At 390px the revenue '$14,870' wraps mid-number into '$14,87' / '0'. Use adjustsFontSizeToFit with numberOfLines={1}, or a smaller font or a wider tile.", "testID": "admin-order-stats", "priority": "medium"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin header tabs", "issues": ["At 390px the 'Pricing' tab is clipped at the right edge (the horizontal scroll isn't obvious). Reduce the tab padding so all 4 fit, or left-align the tabs."]},
+      {"screen": "/admin Orders search and Pricing inputs (web)", "issues": ["The default browser focus outline draws a black rectangle inside the rounded input. Set outlineStyle: 'none' on web."]},
+      {"screen": "/admin Partners tab", "issues": ["email_status (e.g. failed:undeliverable_recipient) is not shown, so the team can't tell that notification emails are failing."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_admin_reviews_pricing.py", "/app/test_reports/pytest/iteration_7.xml"],
+  "action_items": [
+    "Fix the revenue stat tile wrapping mid-number on mobile (OrderStats tileValue: numberOfLines={1} plus adjustsFontSizeToFit).",
+    "PricingTab: add a client-side bundle<=single check with an inline error, and use strict integer parsing.",
+    "Make all 4 admin tabs fit at 390px, or make the scroll obvious.",
+    "Optional: show email_status in the Partners tab, and compute admin order stats with an aggregation instead of the 1000-doc limit.",
+    "Update stale older tests: test_orders.py (old prices 270/1080 and the removed clinic plan) and test_clinic_and_email.py. Those suites also hit the per-IP rate limits (orders 20/h, clinic 5/h), because random X-Forwarded-For values go leftmost and client_ip uses the rightmost entry."
+  ],
+  "critical_code_review_comments": [
+    "usePrices uses a 60s staleTime. If an admin changes prices while a customer is mid-checkout, the order is charged the new server price while the old price is displayed. Consider refetching pricing on checkout mount, or returning a price-changed notice.",
+    "The admin passcode lives only in React state, so the admin must log in again after every reload. That is acceptable by design.",
+    "Reviews: there is a unique index on order_number plus a pre-check, so duplicates are handled correctly. The public view does not leak customer_email."
+  ],
+  "updated_files": ["/app/backend/tests/test_admin_reviews_pricing.py"],
+  "success_rate": {"backend": "100% (24/24 new tests)", "frontend": "100% of tested flows working; 2 minor UI bugs plus design nits"},
+  "seed_data_creation": "Created TEST_ orders (@example.com), including BRNA-261102-0119 (one-time, review submitted then approved then hidden) and BRNA-261102-0120 (subscribe x4). Test reviews were left rejected (hidden). Prices were reset to 300/275/275. The public reviews endpoint still shows only the original approved review (count 1).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Admin passcode 10F40F7B. Run new tests with: export EXPO_PUBLIC_BACKEND_URL then pytest tests/test_admin_reviews_pricing.py (pytest.ini uses xdist). The module fixture resets prices. Rate limits are per real IP (rightmost XFF): orders 20/h, order-email 5/h, clinic 5/h, review 10/h, admin failures 10/h.",
+  "rca_of_issue": ""
+}

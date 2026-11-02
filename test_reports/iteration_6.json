@@ -1,0 +1,46 @@
+{
+  "summary": "Tested Manage Auto-Ship end to end. Backend: 15 new pytest tests in test_autoship.py plus 7 tests in test_push_due_reminders.py, all 22 passing. They cover list/401, the default next date of created_at+14d, case-insensitive exact email match (a partial email does not match), one-time orders hidden, skip (+14d, skips_used+1), change_qty 4 (1100), 3/None giving 400, invalid action giving 422, pause (date null, skip/pause giving 400), resume (>= now+2d, second resume giving 400), cancel (every later action giving 400), bad id / other user's plan giving 404, and actions without Bearer giving 401. Frontend at 390x844, signed in with the seeded token: the card, status and next date render. Skip moved Mon 16 Nov to Mon 30 Nov and showed the notice. Choosing 4 boxes changed the price to $1,100 per shipment. Pause showed Paused, hid Skip and the date, and showed Resume. Resume brought back Active. Cancel showed the confirm, Keep hid it, Yes set Cancelled and removed all controls, and this held after a reload. Regression passed: 8 orders listed, tapping one opens /order/{id}, back works, and sign out clears the token and shows the sign-in screen. No page errors. Push 401 is expected in preview (not tested here).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/me/autoships", "issue": "Returns only the newest 20 plans (to_list(20)), with cancelled ones included. A customer with many old or cancelled plans loses sight of older active plans, which they then cannot manage."},
+      {"endpoint": "POST /api/me/autoships/{id}", "issue": "The update_one has no status precondition: it reads the status, then writes. Two concurrent requests, for example cancel and skip, can both pass the check. Add autoship_status to the update filter."},
+      {"endpoint": "push_service._due_reminders", "issue": "Uses order.get('autoship_status', 'active'), but advance_autoships and autoship._view treat None as active. An order with autoship_status explicitly null would be advanced but get no nightly or ship push. Use `(o.get('autoship_status') or 'active')` everywhere."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AutoShipCard notice", "issue": "Error messages (for example the 400 'Resume your Auto-Ship before skipping a shipment') show in the success green rgb(31,138,76), the same style as success notices. They need an error colour.", "testID": "autoship-notice-{id}", "priority": "MEDIUM"},
+      {"component": "AutoShipCard onError", "issue": "The card is not refreshed when an action fails. Paused from another device, the card still shows Active with Skip after the 400. onError should invalidate ['my-autoships'].", "testID": "autoship-status-{id}", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Sign out then sign in as another user", "issue": "The query key ['my-autoships'] is not scoped by user (my-orders and my-referral include user_id), and signOut does not clear the react-query cache. The previous user's Auto-Ship plans can show from cache to the next user on the same device.", "affected_testIDs": ["account-autoship"]}
+    ],
+    "design_issues": [
+      {"screen": "/account Manage Auto-Ship", "issues": [
+        "Cancelled plans stay in the list forever and still show '$X per shipment'. Collapse or hide them, or label them as past plans.",
+        "An old notice (for example 'Auto-Ship resumed.') stays visible under the cancel confirm box.",
+        "No loading or error state for the autoships query. The section just doesn't render."
+      ]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_autoship.py", "/app/backend/tests/test_push_due_reminders.py", "/app/test_reports/pytest/pytest_autoship.xml"],
+  "action_items": [
+    "AutoShipCard: show error notices in an error colour, and invalidate ['my-autoships'] in onError so the card matches the server.",
+    "Scope the my-autoships queryKey by user_id and/or call queryClient.clear() in signOut.",
+    "Backend: add a status precondition to the update filter (atomic), and normalise None to 'active' in push_service._due_reminders.",
+    "Consider removing the 20 limit on the list or sorting active plans first. Optionally hide or collapse cancelled plans."
+  ],
+  "critical_code_review_comments": [
+    "The cancel link Pressable is not disabled while another action is pending (minor).",
+    "change_qty with the same quantity is accepted as a no-op write. The UI disables that button, so this is fine.",
+    "Matching by email lets any order placed as a guest with the user's email be managed by that account. This is intended by the spec, but note it if email ownership is not verified (Apple private relay is fine)."
+  ],
+  "updated_files": ["/app/backend/tests/test_autoship.py (new)"],
+  "success_rate": {"backend": "100% (22/22)", "frontend": "100% of requested flows; 2 medium UX/state bugs on error path"},
+  "seed_data_creation": "Test orders were deleted (the test file now cleans up its own orders). I left one active plan, BRNA-261102-0093 (id 6ae81a8ddb46a40b6882adb2, email as.seed01@example.com), linked to user_test0001. The UI sign-out deleted st_test_session_0001; it was re-seeded via mongosh (7 days). BRNA-261102-0081 (main agent's, already cancelled) is untouched.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app/backend/tests && EXPO_PUBLIC_BACKEND_URL=... pytest test_autoship.py test_push_due_reminders.py (pytest.ini forces -n 2 loadscope; use -n 0 for serial). test_email_match_case_insensitive creates one guest order with DELIVERED+AUTH@resend.dev each run, and the 5 orders/hour per email-key limit may give 429 after several runs; restart the backend to reset. UI sign-out deletes st_test_session_0001; re-seed it with the mongosh upsert from iteration_5."
+}

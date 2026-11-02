@@ -9,20 +9,21 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createOrder, CodePreview } from "@/src/api";
 import { PromoCodeField } from "@/src/components/PromoCodeField";
 import { useAuth } from "@/src/auth";
-import { CLINIC_TIERS, formatSGD, PlanId, PRICING, SUB_TIERS, unitPriceFor } from "@/src/content";
+import { formatSGD, PlanId, PLAN_NOTES, SUB_TIERS, unitPriceFor } from "@/src/content";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
+import { usePrices } from "@/src/pricing";
+import { queryClient } from "@/src/query-client";
 import { makeStyles, useTheme } from "@/src/theme";
 
 type Pay = "apple_pay" | "google_pay" | "card";
 const PLAN_NAMES: Record<PlanId, string> = {
   subscribe: "Auto-Ship · Every 2 Weeks",
   one_time: "BioRNA-C · One-time purchase",
-  clinic: "Clinic & Multi-Pack Program",
 };
-const MAX_QTY: Record<PlanId, number> = { one_time: 10, subscribe: 4, clinic: 10 };
-const TIERS: Partial<Record<PlanId, number[]>> = { clinic: CLINIC_TIERS, subscribe: SUB_TIERS };
+const MAX_QTY: Record<PlanId, number> = { one_time: 10, subscribe: 4 };
+const TIERS: Partial<Record<PlanId, number[]>> = { subscribe: SUB_TIERS };
 
-type FieldKey = "full_name" | "email" | "phone" | "address" | "postal_code" | "clinic_name";
+type FieldKey = "full_name" | "email" | "phone" | "address" | "postal_code";
 
 export default function Checkout() {
   const styles = useStyles();
@@ -40,7 +41,7 @@ export default function Checkout() {
   });
   const [pay, setPay] = useState<Pay>(Platform.OS === "android" ? "google_pay" : "apple_pay");
   const { user } = useAuth();
-  const [form, setForm] = useState<Record<FieldKey, string>>({ full_name: user?.name ?? "", email: user?.email ?? "", phone: "", address: "", postal_code: "", clinic_name: "" });
+  const [form, setForm] = useState<Record<FieldKey, string>>({ full_name: user?.name ?? "", email: user?.email ?? "", phone: "", address: "", postal_code: "" });
   useEffect(() => {
     if (!user) return;
     setForm((s) => ({ ...s, full_name: s.full_name || user.name || "", email: s.email || user.email || "" }));
@@ -50,7 +51,8 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const refs = useRef<Partial<Record<FieldKey, TextInput | null>>>({});
 
-  const unit = unitPriceFor(plan, qty);
+  const prices = usePrices();
+  const unit = unitPriceFor(prices, plan, qty);
   const tiers = TIERS[plan];
   const [promo, setPromo] = useState<CodePreview | null>(null);
   const subtotal = unit * qty;
@@ -58,7 +60,6 @@ export default function Checkout() {
   const total = subtotal - discount;
 
   const fields: { key: FieldKey; label: string; placeholder: string; keyboard?: "email-address" | "phone-pad" | "number-pad"; auto?: any }[] = [
-    ...(plan === "clinic" ? [{ key: "clinic_name" as FieldKey, label: "Clinic / provider name", placeholder: "e.g. Orchard Aesthetics Clinic" }] : []),
     { key: "full_name", label: "Full name", placeholder: "Jane Tan", auto: "name" },
     { key: "email", label: "Email", placeholder: "jane@email.com", keyboard: "email-address", auto: "email" },
     { key: "phone", label: "Mobile number", placeholder: "+65 9123 4567", keyboard: "phone-pad", auto: "tel" },
@@ -68,7 +69,6 @@ export default function Checkout() {
 
   const validate = () => {
     const e: Partial<Record<FieldKey, string>> = {};
-    if (plan === "clinic" && form.clinic_name.trim().length < 2) e.clinic_name = "Enter your clinic or provider name";
     if (form.full_name.trim().length < 2) e.full_name = "Enter your full name";
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) e.email = "Enter a valid email";
     if (form.phone.replace(/\D/g, "").length < 6) e.phone = "Enter a valid mobile number";
@@ -88,19 +88,20 @@ export default function Checkout() {
         quantity: qty,
         payment_method: pay,
         code: promo?.code ?? null,
+        expected_unit_price: unit,
         customer: {
           full_name: form.full_name.trim(),
           email: form.email.trim(),
           phone: form.phone.trim(),
           address: form.address.trim(),
           postal_code: form.postal_code.trim(),
-          clinic_name: plan === "clinic" ? form.clinic_name.trim() : null,
         },
       });
       if (Platform.OS !== "web") Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace({ pathname: "/order/[id]", params: { id: order.id } });
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+      queryClient.invalidateQueries({ queryKey: ["pricing"] });
     } finally {
       setLoading(false);
     }
@@ -133,7 +134,7 @@ export default function Checkout() {
           <View style={styles.summary} testID="order-summary">
             <Text style={styles.kicker}>Order summary</Text>
             <Text style={styles.planName} testID="summary-plan-name">{PLAN_NAMES[plan]}</Text>
-            <Text style={styles.planNote}>{PRICING[plan].note}</Text>
+            <Text style={styles.planNote}>{PLAN_NOTES[plan]}</Text>
             <View style={styles.qtyRow}>
               <Text style={styles.qtyLabel}>{formatSGD(unit)} × {qty} box{qty > 1 ? "es" : ""}</Text>
               {tiers ? (
@@ -182,7 +183,7 @@ export default function Checkout() {
             <PayOption id="card" label="Card" Icon={CreditCard} />
           </View>
 
-          <Text style={styles.sectionTitle}>{plan === "clinic" ? "Clinic & delivery details" : "Delivery details"}</Text>
+          <Text style={styles.sectionTitle}>Delivery details</Text>
           {fields.map((f, i) => (
             <View key={f.key} style={styles.field}>
               <Text style={styles.label}>{f.label}</Text>

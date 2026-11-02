@@ -1,4 +1,4 @@
-export type PlanId = "one_time" | "subscribe";
+export type PlanId = "one_time" | "subscribe" | "product";
 
 // Live prices come from the server (editable in /admin); these are only shown until it responds.
 export type Prices = { single: number; bundle: number; autoship: number };
@@ -7,6 +7,7 @@ export const DEFAULT_PRICES: Prices = { single: 300, bundle: 275, autoship: 275 
 export const PLAN_NOTES: Record<PlanId, string> = {
   one_time: "7 patches per box · ships in 1–2 days",
   subscribe: "Ships every 2 weeks · cancel anytime",
+  product: "Ships in 1–2 days",
 };
 
 export const unitPriceFor = (p: Prices, plan: PlanId, qty: number) =>
@@ -131,7 +132,16 @@ export const ACCORDIONS = [
   },
 ];
 
-export const CONTACT_EMAIL = "enquiry@BioRNA.sg";
+export const CONTACT_EMAIL = "info@smoothscar.com";
+
+// Replace each url with your brand's own profile page.
+export const SOCIAL_LINKS = [
+  { id: "linkedin", label: "LinkedIn", url: "https://www.linkedin.com/search/results/all/?keywords=BioRNA" },
+  { id: "facebook", label: "Facebook", url: "https://www.facebook.com/search/top?q=BioRNA" },
+  { id: "instagram", label: "Instagram", url: "https://www.instagram.com/explore/search/keyword/?q=BioRNA" },
+  { id: "x", label: "X (Twitter)", url: "https://x.com/search?q=BioRNA" },
+  { id: "youtube", label: "YouTube", url: "https://www.youtube.com/results?search_query=BioRNA" },
+] as const;
 
 export const DISCLAIMER =
   "BioRNA Antiscar is a cosmetic product and is not intended to diagnose, treat, cure or prevent any disease. Individual results may vary. Clinical statistics refer to study participants as published in the cited peer-reviewed journal. Before/after photos are from real BioRNA users; results vary between individuals. Consult a healthcare professional if you have concerns about your scar.";

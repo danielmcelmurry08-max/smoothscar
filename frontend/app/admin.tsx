@@ -9,16 +9,18 @@ import { getAdminPricing } from "@/src/api";
 import { OrdersTab } from "@/src/components/admin/OrdersTab";
 import { PartnersTab } from "@/src/components/admin/PartnersTab";
 import { PricingTab } from "@/src/components/admin/PricingTab";
+import { ProductsTab } from "@/src/components/admin/ProductsTab";
 import { ReviewsTab } from "@/src/components/admin/ReviewsTab";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
 
-type Tab = "orders" | "reviews" | "partners" | "pricing";
+type Tab = "orders" | "reviews" | "partners" | "pricing" | "products";
 const TABS: { id: Tab; label: string }[] = [
   { id: "orders", label: "Orders" },
   { id: "reviews", label: "Reviews" },
   { id: "partners", label: "Partners" },
   { id: "pricing", label: "Pricing" },
+  { id: "products", label: "Products" },
 ];
 
 export default function Admin() {
@@ -53,7 +55,7 @@ export default function Admin() {
         <Pressable testID="admin-back-button" onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))} style={styles.iconBtn} hitSlop={8}>
           <ArrowLeft size={22} color={colors.onSurface} weight="bold" />
         </Pressable>
-        <Text style={styles.headerTitle}>Team dashboard</Text>
+        <Text style={styles.headerTitle}>SmoothScar team portal</Text>
         {authed ? (
           <Pressable testID="admin-logout-button" onPress={() => { setAuthed(null); setPasscode(""); setTab("orders"); }} style={styles.iconBtn}>
             <SignOut size={20} color={colors.muted} weight="bold" />
@@ -79,15 +81,16 @@ export default function Admin() {
         <KeyboardAwareScrollView contentContainerStyle={styles.loginWrap} keyboardShouldPersistTaps="handled">
           <View style={styles.column}>
             <Text style={styles.title}>Team access</Text>
-            <Text style={styles.body}>Enter the team passcode to view orders, reviews, partner applications and pricing.</Text>
+            <Text style={styles.body}>Enter the portal password to manage orders, reviews, partner applications, pricing and products.</Text>
             <TextInput
               testID="admin-passcode-input"
               value={passcode}
               onChangeText={(t) => { setPasscode(t); if (error) setError(""); }}
-              placeholder="Passcode"
+              placeholder="Password"
               placeholderTextColor={colors.muted}
               secureTextEntry
-              autoCapitalize="characters"
+              autoCapitalize="none"
+              autoCorrect={false}
               returnKeyType="go"
               onSubmitEditing={login}
               style={[styles.input, error ? styles.inputError : null]}
@@ -110,6 +113,7 @@ export default function Admin() {
         {tab === "reviews" ? <ReviewsTab passcode={authed} /> : null}
         {tab === "partners" ? <PartnersTab passcode={authed} /> : null}
         {tab === "pricing" ? <PricingTab passcode={authed} /> : null}
+        {tab === "products" ? <ProductsTab passcode={authed} /> : null}
       </View>
     </View>
   );

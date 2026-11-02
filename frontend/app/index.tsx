@@ -11,6 +11,7 @@ import { CheckoutWidget, Selection } from "@/src/components/CheckoutWidget";
 import { Evidence } from "@/src/components/Evidence";
 import { Footer } from "@/src/components/Footer";
 import { Hero } from "@/src/components/Hero";
+import { ProductPacks } from "@/src/components/ProductPacks";
 import { Reviews } from "@/src/components/Reviews";
 import { StickyCTA, STICKY_HEIGHT } from "@/src/components/StickyCTA";
 import { Testimonials } from "@/src/components/Testimonials";
@@ -91,9 +92,10 @@ export default function Landing() {
             />
           </View>
           <View onLayout={mark("info")}>
+            <ProductPacks />
             <TrustInfo />
           </View>
-          <Footer onNavigate={scrollTo} onApply={() => router.push("/clinic-apply")} onAdmin={() => router.push("/admin")} bottomPad={STICKY_HEIGHT + insets.bottom + 24} />
+          <Footer onNavigate={scrollTo} onApply={() => router.push("/clinic-apply")} bottomPad={STICKY_HEIGHT + insets.bottom + 24} />
         </View>
       </ScrollView>
       {hideSticky ? null : <StickyCTA onPress={() => scrollTo("buy")} />}

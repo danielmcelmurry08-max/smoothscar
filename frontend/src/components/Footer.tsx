@@ -1,11 +1,11 @@
 import { EnvelopeSimple } from "phosphor-react-native";
 import { Linking, Pressable, Text, View } from "react-native";
 
-import { CONTACT_EMAIL, DISCLAIMER } from "../content";
+import { CONTACT_EMAIL, DISCLAIMER, SOCIAL_LINKS } from "../content";
 import { fonts, space } from "../fonts";
 import { makeStyles, useTheme } from "../theme";
 
-type Props = { onNavigate: (key: "evidence" | "buy" | "info") => void; onApply: () => void; onAdmin: () => void; bottomPad: number };
+type Props = { onNavigate: (key: "evidence" | "buy" | "info") => void; onApply: () => void; bottomPad: number };
 
 const LINKS: { key: "evidence" | "buy" | "info"; label: string }[] = [
   { key: "evidence", label: "Clinical Evidence" },
@@ -13,7 +13,7 @@ const LINKS: { key: "evidence" | "buy" | "info"; label: string }[] = [
   { key: "info", label: "How It Works" },
 ];
 
-export function Footer({ onNavigate, onApply, onAdmin, bottomPad }: Props) {
+export function Footer({ onNavigate, onApply, bottomPad }: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   return (
@@ -36,11 +36,15 @@ export function Footer({ onNavigate, onApply, onAdmin, bottomPad }: Props) {
         <EnvelopeSimple size={18} color={colors.onSurfaceInverse} />
         <Text style={styles.emailText}>{CONTACT_EMAIL}</Text>
       </Pressable>
+      <View style={styles.socials} aria-label="Follow BioRNA">
+        {SOCIAL_LINKS.map((s) => (
+          <Pressable key={s.id} role="link" aria-label={s.label} onPress={() => Linking.openURL(s.url)} testID={`footer-social-${s.id}`} style={styles.social}>
+            <Text style={styles.socialText}>{s.label}</Text>
+          </Pressable>
+        ))}
+      </View>
       <Text style={styles.disclaimer} testID="footer-disclaimer">{DISCLAIMER}</Text>
       <Text style={styles.copy}>© {new Date().getFullYear()} BioRNA Pte. Ltd. · Singapore</Text>
-      <Pressable onPress={onAdmin} testID="footer-admin-link" style={styles.link}>
-        <Text style={styles.adminText}>Team login</Text>
-      </Pressable>
     </View>
   );
 }
@@ -55,7 +59,9 @@ const useStyles = makeStyles((c) => ({
   linkText: { fontFamily: fonts.bold, fontSize: 14, color: c.onSurfaceInverse },
   email: { flexDirection: "row", alignItems: "center", gap: space.sm, minHeight: 44 },
   emailText: { fontFamily: fonts.medium, fontSize: 15, color: c.onSurfaceInverse, textDecorationLine: "underline" },
+  socials: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.md },
+  social: { minHeight: 44, paddingHorizontal: space.md, borderRadius: 999, borderWidth: 1, borderColor: c.muted, justifyContent: "center" },
+  socialText: { fontFamily: fonts.bold, fontSize: 13, color: c.onSurfaceInverse },
   disclaimer: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: c.muted, marginTop: space.xl },
   copy: { fontFamily: fonts.regular, fontSize: 12, color: c.muted, marginTop: space.lg },
-  adminText: { fontFamily: fonts.medium, fontSize: 12, color: c.muted, textDecorationLine: "underline" },
 }));

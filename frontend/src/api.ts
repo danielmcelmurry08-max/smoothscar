@@ -122,7 +122,7 @@ export type ReviewSummary = { average: number | null; count: number; distributio
 export const getReviews = () => request<ReviewSummary>("/reviews");
 export const createReview = (body: unknown) => request<{ status: string }>("/reviews", { method: "POST", body: JSON.stringify(body) });
 export const lookupReviewOrder = (order_number: string, email: string) =>
-  request<{ photo_token: string; before_photo_id: string | null }>("/reviews/lookup", { method: "POST", body: JSON.stringify({ order_number, email }) });
+  request<OrderPhotos>("/reviews/lookup", { method: "POST", body: JSON.stringify({ order_number, email }) });
 
 async function uploadPhoto(path: string, uri: string, fields?: Record<string, string>) {
   const res = await uploadForm(`${BASE}${path}`, { fields, files: { file: { uri, name: "photo.jpg", mimeType: "image/jpeg" } } });
@@ -131,8 +131,23 @@ async function uploadPhoto(path: string, uri: string, fields?: Record<string, st
   return data as { id: string; kind: "before" | "after" };
 }
 export const uploadBeforePhoto = (orderId: string, token: string, uri: string) => uploadPhoto(`/orders/${orderId}/before-photo`, uri, { token });
-export const uploadReviewPhoto = (order_number: string, email: string, kind: "before" | "after", uri: string) =>
-  uploadPhoto("/review-photos", uri, { order_number, email, kind });
+export type OrderPhotos = {
+  photo_token: string; before_photo_id: string | null; order_date: string;
+  photos: { id: string; kind: "before" | "after" | "progress"; week: number | null; created_at: string }[];
+};
+export const uploadReviewPhoto = (order_number: string, email: string, kind: "before" | "after" | "progress", uri: string, week?: number) =>
+  uploadPhoto("/review-photos", uri, { order_number, email, kind, ...(week ? { week: String(week) } : {}) });
+
+export type Product = { id: string; name: string; patches: number; price: number; description: string | null; badge: string | null; image_url: string | null; image: string | null; active: boolean; sort: number };
+export type ProductInput = Omit<Product, "id" | "image">;
+export const getProducts = () => request<Product[]>("/products");
+export const getProduct = (id: string) => request<Product>(`/products/${id}`);
+export const productImage = (p: Product) => (p.image ? (p.image.startsWith("/api/") ? `${process.env.EXPO_PUBLIC_BACKEND_URL}${p.image}` : p.image) : null);
+export const getAdminProducts = (passcode: string) => adminRequest<Product[]>(passcode, "/products");
+export const createAdminProduct = (passcode: string, body: ProductInput) => adminRequest<Product>(passcode, "/products", { method: "POST", body: JSON.stringify(body) });
+export const updateAdminProduct = (passcode: string, id: string, body: ProductInput) =>
+  adminRequest<Product>(passcode, `/products/${id}`, { method: "PUT", body: JSON.stringify(body) });
+export const deleteAdminProduct = (passcode: string, id: string) => adminRequest<{ deleted: boolean }>(passcode, `/products/${id}`, { method: "DELETE" });
 export const createClinicApplication = (body: unknown) =>
   request<{ id: string; clinic_name: string }>("/clinic-applications", { method: "POST", body: JSON.stringify(body) });
 export const getOrder = (id: string) => request<Order>(`/orders/${id}`);

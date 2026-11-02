@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 10 covers the new team portal and products, product checkout, progress photos and reminders, the review alert, and the footer, plus regression. Backend: 50/50 tests pass. That is 15/15 in test_review_photos_rewards.py, after 1 outdated assertion was fixed, 24/24 in test_admin_reviews_pricing.py, and 11/11 in the new test_products_progress.py. The progress-reminder selection check (tests/progress_reminder_check.py) passed 7/7 aged orders. Day 8 and day 11 orders got the week 1 email, day 15 and day 18 got week 2, and day 5, 13 and 20 got nothing. Each send happened once. The passcode 'smoothscar' works and '10F40F7B' and a missing passcode return 401. GET /api/products returns the 5 seeded biorna.sg packs. Admin create, update, hide and delete work, hidden and deleted products drop out of the public list, and GET /products/{id} returns 404 for them. Product orders work and plan_name contains the pack name (Starter x2 = $456). Unknown, garbage or hidden products return 404, qty 11 returns 422, and a missing product_id returns 400. Progress photos need week 1-3 (400 otherwise), and lookup returns photos with kind and week. The review alert email to info@smoothscar.com was attempted and returned 422 undeliverable, as expected. UI at 390x844: the footer shows info@smoothscar.com and all 5 social buttons (44px tall), and there is no Team login link. product-packs shows 5 cards. Tapping a card opens /checkout?plan=product&product=<id> with the pack name. The qty stepper is capped at 1-10. The order went through (Standard x2 = $1,712) and the confirmation shows the pack. An unknown product shows 'This product is no longer available' with Pay disabled. In /admin the old passcode shows 'Incorrect passcode' and the new one opens the 5 tabs. In Products, add, edit price, hide and delete (with confirm) all show up correctly on the landing page. On /progress a wrong email shows an error and the before/w1/w2/w3 slots render. A week 1 upload persists after reopening (?order&email prefill works, image served via ?token=). progress-review opens /review prefilled. The regression one_time and subscribe UI checkouts both succeed. Deprecated packages detected: none.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "review_request_loop / send_progress_reminders", "issue": "The reminder is claimed ($addToSet progress_reminders_sent) before the email is sent and is never retried. In testing all 4 reminders ended as progress_email_status 'failed:rate_limited' (provider 429) and are permanently lost. Sends are also sequential with 5/10/20s backoff, so 50 orders can block the loop for about 30 minutes. Reference: /app/backend/reviews.py:108-121"},
+      {"endpoint": "GET /api/admin/orders", "issue": "Returns 500 (KeyError 'plan_name') if any order doc lacks plan_name, for example orders inserted directly as the review request suggested. Use d.get('plan_name'). progress_reminder_email has the same issue: it does order['customer']['full_name'], and a KeyError aborts the whole loop iteration after the claim. Reference: /app/backend/admin.py:124, /app/backend/email_service.py:292"},
+      {"endpoint": "POST /api/admin/products", "issue": "New products from the UI are always sent with sort 0, so a new pack lands in 2nd place (tie with BioRNA-K broken by _id) instead of at the end. Default to max(sort)+1. Reference: /app/frontend/src/components/admin/ProductsTab.tsx:81"}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "checkout (unknown/inactive product)", "issue": "The Pay button is aria-disabled but keeps full brand styling and reads 'Pay with Apple Pay · $0', so it looks tappable. Use the disabled style and offer a 'Back to shop' link.", "testID": "place-order-button", "priority": "low"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Landing - More BioRNA packs", "issues": ["Horizontal ScrollView with the indicator hidden: at 768px only about 2.4 cards are visible (scrollWidth 1196 vs 560) and mouse/trackpad users on web have no obvious way to scroll. Add arrows or a wrapping grid on wide screens.", "The price/Buy row isn't aligned across cards because description lengths differ. Push the footer to the bottom with marginTop:'auto'."]},
+      {"screen": "Footer", "issues": ["The social links are search-result URLs (linkedin.com/search, facebook.com/search, x.com/search, etc.), not real BioRNA profile pages. Replace them with the official profile URLs."]},
+      {"screen": "/admin Products", "issues": ["The admin UI has no image upload, only an image URL field, although POST /api/admin/products/{id}/image works (tested: 200, and product-images serves it). The 'Show on website' switch has a light grey off state on white, which has low contrast."]},
+      {"screen": "/review", "issues": ["A week 3 progress photo is not offered as the review's 'after' photo, so the customer must upload it again."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_products_progress.py", "/app/backend/tests/progress_reminder_check.py", "/app/backend/tests/test_review_photos_rewards.py", "/app/backend/tests/test_admin_reviews_pricing.py", "/app/test_reports/pytest/pytest_iter10_products.xml", "/app/test_reports/pytest/pytest_iter10_photos.xml", "/app/test_reports/pytest/pytest_iter10_admin.xml"],
+  "action_items": [
+    "Progress reminders: only add the week to progress_reminders_sent once the email is sent, or retry statuses that start with 'failed:rate_limited' on a later loop run while the order is still in its window. Consider sending the emails concurrently or without inline backoff so the review-request loop isn't blocked.",
+    "admin.py:124: use d.get('plan_name') (and .get for other optional fields). email_service.progress_reminder_email: use .get('full_name') or 'there'.",
+    "ProductsTab create: send sort = max(existing sort)+1 so new packs appear last.",
+    "Replace the SOCIAL_LINKS search URLs in src/content.ts with the real BioRNA/SmoothScar profile URLs.",
+    "Optional: on checkout for an unknown product, use the disabled CTA style and add a back link. Add arrows or a grid for the product packs on wide web screens. Add an image upload to the admin product form."
+  ],
+  "critical_code_review_comments": [
+    "products.py: the public GET /product-images/{id} serves images for hidden products. That is harmless, but it isn't consistent with the 404 for hidden products.",
+    "reviews.py send_progress_reminders: the 5-day window (7-12 and 14-19 days) together with $addToSet claims is correct and idempotent, and string ISO comparison works because all created_at values use the +00:00 format.",
+    "The phone alert (_push) needs reminders_enabled plus push_user_id on the order and a native device, so it is NOT verified in web preview.",
+    "server.py product orders: the product price is read from the DB, not the client, and qty is capped at 10 server-side (422 for 11). Good."
+  ],
+  "updated_files": ["/app/backend/tests/test_review_photos_rewards.py (test_lookup now checks a subset of keys because lookup also returns order_date and photos)", "/app/backend/tests/test_products_progress.py (new)", "/app/backend/tests/progress_reminder_check.py (new)"],
+  "success_rate": {"backend": "100% (50/50 pytest + 7/7 reminder cases); 3 minor robustness issues", "frontend": "100% of requested flows; minor design issues only"},
+  "seed_data_creation": "UI orders BRNA-261102-0217 (Standard Pack x2, delivered+packui@resend.dev, with a week 1 progress photo), 0218 (one_time) and 0219 (subscribe). API test orders use test_prod*@example.com, and one TEST_Alert review is pending. The TESTPR-* aged orders were deleted after the check. TEST_ products were deleted (soft delete).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "export EXPO_PUBLIC_BACKEND_URL from frontend/.env. Then run: cd /app/backend; python -m pytest tests/test_products_progress.py tests/test_review_photos_rewards.py tests/test_admin_reviews_pricing.py (pytest.ini uses xdist loadscope). Restart the backend between suites if you hit 429. Reminder check: python tests/progress_reminder_check.py insert, then sudo supervisorctl restart backend, wait about 2 minutes (the provider is rate-limited and each email retries with backoff), then run verify. Delete the TESTPR-* orders afterwards, because docs without plan_name make /api/admin/orders return 500.",
+  "rca_of_issue": "Lost reminders: send_progress_reminders claims the week before sending and stores only the status, and nothing retries failed statuses. Provider 429s in this environment caused all 4 to fail permanently. Admin orders 500: admin.py indexes d['plan_name'] directly, and docs inserted directly into Mongo lacked that field."
+}

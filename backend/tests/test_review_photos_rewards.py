@@ -9,7 +9,7 @@ import requests
 from PIL import Image
 
 BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL").rstrip("/")
-PASS = "10F40F7B"
+PASS = "smoothscar"
 ADM = {"X-Admin-Passcode": PASS}
 CUST = {"full_name": "TEST_PhotoReviewer", "phone": "+6591234567",
         "address": "1 Orchard Road #01-01", "postal_code": "238823"}
@@ -99,7 +99,9 @@ def test_lookup():
     r = requests.post(f"{BASE_URL}/api/reviews/lookup", headers=_h(),
                       json={"order_number": S["a"]["order_number"].lower(), "email": S["a_email"].upper()})
     assert r.status_code == 200, r.text
-    assert r.json() == {"photo_token": S["a"]["photo_token"], "before_photo_id": S["a_before"]}
+    j = r.json()
+    assert j["photo_token"] == S["a"]["photo_token"] and j["before_photo_id"] == S["a_before"]
+    assert "order_date" in j and any(p["id"] == S["a_before"] and p["kind"] == "before" and p["week"] is None for p in j["photos"])
     r = requests.post(f"{BASE_URL}/api/reviews/lookup", headers=_h(),
                       json={"order_number": S["a"]["order_number"], "email": "wrong@example.com"})
     assert r.status_code == 400

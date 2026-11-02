@@ -277,7 +277,8 @@ def review_request_email(order: dict, percent: int) -> tuple[str, str]:
     inner = (
         f'<p style="margin:0">Hi {escape(first)}, it&rsquo;s been about three weeks since your order {escape(order["order_number"])}. '
         f'How is your scar looking?</p>'
-        f'<p style="margin:16px 0 0">Share a 1–5 star rating and a few words about your results. You can add your before photo and an after photo, too.</p>'
+        f'<p style="margin:16px 0 0">Take your week 3 progress photo, then share a 1–5 star rating and a few words about your results. '
+        f'You can add your before photo and an after photo, too.</p>'
         f'<p style="margin:16px 0 0">As a thank-you, once your review is approved we&rsquo;ll email you a code for '
         f'<strong>{percent}% off a box</strong>.</p>'
         f'{_button(link, "Rate my results")}'
@@ -285,6 +286,34 @@ def review_request_email(order: dict, percent: int) -> tuple[str, str]:
         f'Only your chosen name, rating, review and photos are shown publicly.</p>'
     )
     return f"How are your results with {EMAIL_FROM_NAME}?", _shell("How are your results?", inner)
+
+
+def progress_reminder_email(order: dict, week: int) -> tuple[str, str]:
+    first = order["customer"]["full_name"].split(" ")[0]
+    link = f"{SITE_URL.rstrip('/')}/progress?{urlencode({'order': order['order_number'], 'email': order['customer']['email']})}"
+    inner = (
+        f'<p style="margin:0">Hi {escape(first)}, you&rsquo;re {week} week{"s" if week > 1 else ""} into your BioRNA routine. '
+        f'Time for a progress photo!</p>'
+        f'<p style="margin:16px 0 0">Photograph your scar in the same light and from the same angle as your before photo. '
+        f'Seeing the change week by week helps you stay consistent with your nightly patch.</p>'
+        f'{_button(link, f"Add my week {week} photo")}'
+        f'<p style="margin:20px 0 0;font-size:14px;color:{MUTED}">Your progress photos are private. Only photos you add to a review are ever shown publicly.</p>'
+    )
+    return f"Week {week}: time for your progress photo", _shell(f"Week {week} progress photo", inner)
+
+
+def review_alert_email(review: dict) -> tuple[str, str]:
+    rows = [("Rating", f"{review['rating']} / 5"), ("Name shown", review["display_name"]), ("Order", review["order_number"]),
+            ("Customer email", review["customer_email"]), ("Scar type", review.get("scar_type") or "—"),
+            ("Photos", ", ".join(k for k in ("before", "after") if review.get(f"{k}_photo_id")) or "None")]
+    inner = (
+        f'<p style="margin:0">A new review is waiting for approval.</p>'
+        f'{_rows(rows)}'
+        f'<p style="margin:0;font-size:14px;color:{MUTED}">{escape(review.get("title") or "Review")}</p>'
+        f'<p style="margin:4px 0 0;font-size:15px;white-space:pre-wrap">{escape(review["body"])}</p>'
+        f'{_button(SITE_URL.rstrip("/") + "/admin", "Open the team portal")}'
+    )
+    return f"New {review['rating']}-star review waiting for approval", _shell("New review to approve", inner)
 
 
 def review_reward_email(name: str, code: str, percent: int) -> tuple[str, str]:

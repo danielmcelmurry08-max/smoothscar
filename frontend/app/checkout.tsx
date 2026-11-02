@@ -6,7 +6,8 @@ import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "r
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { createOrder, CodePreview } from "@/src/api";
+import { useQuery } from "@tanstack/react-query";
+import { createOrder, CodePreview, getProduct } from "@/src/api";
 import { PromoCodeField } from "@/src/components/PromoCodeField";
 import { useAuth } from "@/src/auth";
 import { formatSGD, PlanId, PLAN_NOTES, SUB_TIERS, unitPriceFor } from "@/src/content";
@@ -19,8 +20,9 @@ type Pay = "apple_pay" | "google_pay" | "card";
 const PLAN_NAMES: Record<PlanId, string> = {
   subscribe: "Auto-Ship · Every 2 Weeks",
   one_time: "BioRNA-C · One-time purchase",
+  product: "BioRNA pack",
 };
-const MAX_QTY: Record<PlanId, number> = { one_time: 10, subscribe: 4 };
+const MAX_QTY: Record<PlanId, number> = { one_time: 10, subscribe: 4, product: 10 };
 const TIERS: Partial<Record<PlanId, number[]>> = { subscribe: SUB_TIERS };
 
 type FieldKey = "full_name" | "email" | "phone" | "address" | "postal_code";
@@ -30,8 +32,14 @@ export default function Checkout() {
   const { colors } = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ plan?: string; qty?: string; code?: string }>();
-  const initialPlan: PlanId = params.plan === "subscribe" ? "subscribe" : "one_time";
+  const params = useLocalSearchParams<{ plan?: string; qty?: string; code?: string; product?: string }>();
+  const initialPlan: PlanId = params.plan === "subscribe" ? "subscribe" : params.plan === "product" && params.product ? "product" : "one_time";
+  const { data: product, isError: productMissing } = useQuery({
+    queryKey: ["product", params.product],
+    queryFn: () => getProduct(params.product!),
+    enabled: initialPlan === "product",
+    retry: false,
+  });
   const [plan] = useState<PlanId>(initialPlan);
   const [qty, setQty] = useState(() => {
     const q = parseInt(params.qty || "", 10);
@@ -52,7 +60,7 @@ export default function Checkout() {
   const refs = useRef<Partial<Record<FieldKey, TextInput | null>>>({});
 
   const prices = usePrices();
-  const unit = unitPriceFor(prices, plan, qty);
+  const unit = plan === "product" ? (product?.price ?? 0) : unitPriceFor(prices, plan, qty);
   const tiers = TIERS[plan];
   const [promo, setPromo] = useState<CodePreview | null>(null);
   const subtotal = unit * qty;
@@ -91,6 +99,7 @@ export default function Checkout() {
         payment_method: pay,
         code: promo?.code ?? null,
         expected_unit_price: unit,
+        ...(plan === "product" ? { product_id: params.product } : {}),
         customer: {
           full_name: form.full_name.trim(),
           email: form.email.trim(),
@@ -135,8 +144,8 @@ export default function Checkout() {
         <View style={styles.column}>
           <View style={styles.summary} testID="order-summary">
             <Text style={styles.kicker}>Order summary</Text>
-            <Text style={styles.planName} testID="summary-plan-name">{PLAN_NAMES[plan]}</Text>
-            <Text style={styles.planNote}>{PLAN_NOTES[plan]}</Text>
+            <Text style={styles.planName} testID="summary-plan-name">{plan === "product" ? (product?.name ?? (productMissing ? "This product is no longer available" : "Loading…")) : PLAN_NAMES[plan]}</Text>
+            <Text style={styles.planNote}>{plan === "product" && product ? `${product.patches} patch${product.patches > 1 ? "es" : ""} per box · ${PLAN_NOTES.product}` : PLAN_NOTES[plan]}</Text>
             <View style={styles.qtyRow}>
               <Text style={styles.qtyLabel}>{formatSGD(unit)} × {qty} box{qty > 1 ? "es" : ""}</Text>
               {tiers ? (
@@ -219,7 +228,7 @@ export default function Checkout() {
         <View style={[styles.bottom, { paddingBottom: insets.bottom + space.md }]}>
           <View style={styles.column}>
             {submitError ? <Text style={styles.submitError} testID="checkout-submit-error">{submitError}</Text> : null}
-            <Pressable testID="place-order-button" onPress={submit} disabled={loading} style={({ pressed }) => [styles.cta, (pressed || loading) && styles.pressed]}>
+            <Pressable testID="place-order-button" onPress={submit} disabled={loading || (plan === "product" && !product)} style={({ pressed }) => [styles.cta, (pressed || loading) && styles.pressed, plan === "product" && !product && { opacity: 0.5 }]}>
               {loading ? (
                 <ActivityIndicator color={colors.onBrandPrimary} />
               ) : (

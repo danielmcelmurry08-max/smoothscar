@@ -121,7 +121,7 @@ def build_router(db, client_ip) -> APIRouter:
                 "sgt_time": created.strftime("%d %b %Y, %H:%M"),
                 "time_slot": slot,
                 "plan": d["plan"],
-                "plan_name": d["plan_name"],
+                "plan_name": d.get("plan_name", d["plan"]),
                 "quantity": d["quantity"],
                 "unit_price": d["unit_price"],
                 "total": d["total"],

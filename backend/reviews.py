@@ -3,9 +3,11 @@ New reviews wait for team approval; approval publishes the photos and emails a 2
 A background loop emails a "rate your results" request 3 weeks after each order."""
 import asyncio
 import logging
+import os
 import re
 import secrets
 import uuid
+from urllib.parse import urlencode
 from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
@@ -17,13 +19,16 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from admin import verify_view_token
-from email_service import rate_limited, review_request_email, review_reward_email, send_email
+from email_service import progress_reminder_email, rate_limited, review_alert_email, review_request_email, review_reward_email, send_email
+from push_service import safe_push
 from referrals import REVIEW_PERCENT, issue_review_code
 from storage import APP_NAME, get_object, put_object
 
 logger = logging.getLogger(__name__)
 
 REVIEW_REQUEST_AFTER = timedelta(days=21)
+PROGRESS_WEEKS = (1, 2)  # week 3 is covered by the review request, which also asks for a progress photo
+REVIEW_ALERT_EMAIL = os.environ.get("REVIEW_ALERT_EMAIL") or os.environ["ADMIN_EMAIL"]
 MAX_PHOTO_BYTES = 8 * 1024 * 1024
 PHOTO_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic"}
 
@@ -91,9 +96,38 @@ async def on_review_hidden(db, review: dict) -> None:
         await db.review_photos.update_many({"_id": {"$in": ids}}, {"$set": {"public": False}})
 
 
+def progress_link(o: dict) -> str:
+    return f"/progress?{urlencode({'order': o['order_number'], 'email': o['customer']['email']})}"
+
+
+async def _push(o: dict, title: str, message: str, key: str) -> None:
+    if o.get("reminders_enabled") and o.get("push_user_id") and (o.get("autoship_status") or "active") != "cancelled":
+        await safe_push([o["push_user_id"]], {"title": title, "message": message, "action_url": progress_link(o)}, idempotency_key=key)
+
+
+async def send_progress_reminders(db, now: datetime) -> None:
+    for week in PROGRESS_WEEKS:
+        cutoff = (now - timedelta(days=7 * week)).isoformat()
+        floor = (now - timedelta(days=7 * week + 5)).isoformat()  # don't backfill very old orders
+        q = {"created_at": {"$lte": cutoff, "$gte": floor}, "progress_reminders_sent": {"$ne": week}}
+        async for o in db.orders.find(q).limit(50):
+            claimed = await db.orders.update_one({"_id": o["_id"], "progress_reminders_sent": {"$ne": week}},
+                                                 {"$addToSet": {"progress_reminders_sent": week}})
+            if not claimed.modified_count:
+                continue
+            subject, html = progress_reminder_email(o, week)
+            status = await send_email(to=o["customer"]["email"], subject=subject, html=html)
+            if status in ("failed:rate_limited", "failed:network"):  # transient: let the next loop retry
+                await db.orders.update_one({"_id": o["_id"]}, {"$pull": {"progress_reminders_sent": week}})
+                continue
+            await db.orders.update_one({"_id": o["_id"]}, {"$set": {f"progress_email_status.w{week}": status}})
+            await _push(o, f"Week {week}: time for a progress photo", "Snap your scar in the same light and angle as your before photo.", f"progress-{o['_id']}-{week}")
+
+
 async def review_request_loop(db) -> None:
     while True:
         try:
+            await send_progress_reminders(db, datetime.now(timezone.utc))
             cutoff = (datetime.now(timezone.utc) - REVIEW_REQUEST_AFTER).isoformat()
             async for o in db.orders.find({"created_at": {"$lte": cutoff}, "review_request_status": {"$exists": False}}).limit(50):
                 if await db.reviews.find_one({"order_number": o["order_number"]}):
@@ -108,6 +142,7 @@ async def review_request_loop(db) -> None:
                 status = await send_email(to=o["customer"]["email"], subject=subject, html=html)
                 await db.orders.update_one({"_id": o["_id"]}, {"$set": {
                     "review_request_status": status, "review_request_at": datetime.now(timezone.utc).isoformat()}})
+                await _push(o, "Week 3: how is your scar looking?", "Take your week 3 photo and review BioRNA for 25% off a box.", f"progress-{o['_id']}-3")
         except Exception as e:
             logger.error(f"Review request loop error: {e}")
         await asyncio.sleep(1800)
@@ -132,7 +167,7 @@ def build_router(db, client_ip, email_key) -> APIRouter:
             raise HTTPException(404, "Order not found")
         return order
 
-    async def store_photo(order: dict, kind: str, file: UploadFile) -> dict:
+    async def store_photo(order: dict, kind: str, file: UploadFile, week: Optional[int] = None) -> dict:
         ctype = (file.content_type or "").lower()
         if ctype not in PHOTO_TYPES:
             raise HTTPException(400, "Please upload a JPG, PNG, WEBP or HEIC photo.")
@@ -147,11 +182,11 @@ def build_router(db, client_ip, email_key) -> APIRouter:
             logger.error(f"Photo upload failed: {code} {e}")
             raise HTTPException(503, "We couldn't save your photo right now. Please try again later.")
         doc = {"order_id": str(order["_id"]), "order_number": order["order_number"], "kind": kind, "storage_path": res["path"],
-               "content_type": ctype, "size": len(data), "public": False, "created_at": datetime.now(timezone.utc).isoformat()}
+               "content_type": ctype, "size": len(data), "public": False, "week": week, "created_at": datetime.now(timezone.utc).isoformat()}
         ins = await db.review_photos.insert_one(doc)
         if kind == "before":
             await db.orders.update_one({"_id": order["_id"]}, {"$set": {"before_photo_id": str(ins.inserted_id)}})
-        return {"id": str(ins.inserted_id), "kind": kind}
+        return {"id": str(ins.inserted_id), "kind": kind, "week": week}
 
     @r.get("/reviews")
     async def list_reviews():
@@ -198,6 +233,8 @@ def build_router(db, client_ip, email_key) -> APIRouter:
             await db.reviews.insert_one(doc)
         except Exception:
             raise HTTPException(409, "A review has already been submitted for this order.")
+        subject, html = review_alert_email(doc)
+        asyncio.create_task(send_email(to=REVIEW_ALERT_EMAIL, subject=subject, html=html))
         return {"status": "pending"}
 
     @r.post("/reviews/lookup")
@@ -210,15 +247,20 @@ def build_router(db, client_ip, email_key) -> APIRouter:
         if not token:
             token = secrets.token_urlsafe(16)
             await db.orders.update_one({"_id": order["_id"]}, {"$set": {"photo_token": token}})
-        return {"photo_token": token, "before_photo_id": order.get("before_photo_id")}
+        photos = await db.review_photos.find({"order_id": str(order["_id"])}, {"kind": 1, "week": 1, "created_at": 1}).sort("_id", 1).to_list(50)
+        return {"photo_token": token, "before_photo_id": order.get("before_photo_id"), "order_date": order["created_at"],
+                "photos": [{"id": str(p["_id"]), "kind": p["kind"], "week": p.get("week"), "created_at": p["created_at"]} for p in photos]}
 
     @r.post("/review-photos", status_code=201)
     async def upload_review_photo(request: Request, order_number: str = Form(...), email: str = Form(...),
-                                  kind: Literal["before", "after"] = Form(...), file: UploadFile = File(...)):
+                                  kind: Literal["before", "after", "progress"] = Form(...), week: Optional[int] = Form(None),
+                                  file: UploadFile = File(...)):
         if rate_limited(f"photo:{client_ip(request)}", 20):
             raise HTTPException(429, "Too many uploads. Please try again later.")
+        if kind == "progress" and week not in (1, 2, 3):
+            raise HTTPException(400, "Progress photos need a week from 1 to 3.")
         order = await find_order(order_number, email)
-        return await store_photo(order, kind, file)
+        return await store_photo(order, kind, file, week if kind == "progress" else None)
 
     @r.post("/orders/{order_id}/before-photo", status_code=201)
     async def upload_before_photo(order_id: str, request: Request, token: str = Form(...), file: UploadFile = File(...)):

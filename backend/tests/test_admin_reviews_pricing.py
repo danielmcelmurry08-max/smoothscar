@@ -7,7 +7,7 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("EXPO_PUBLIC_BACKEND_URL").rstrip("/")
-PASS = "10F40F7B"
+PASS = "smoothscar"
 ADM = {"X-Admin-Passcode": PASS}
 CUST = {"full_name": "TEST_Reviewer", "phone": "+6591234567",
         "address": "1 Orchard Road #01-01", "postal_code": "238823"}

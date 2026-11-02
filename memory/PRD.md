@@ -84,4 +84,12 @@ Premium medical-cosmetic D2C single-product landing page (mobile web first) for 
 - Order page: BeforePhotoCard prompts a before photo prior to first patch (`POST /api/orders/{id}/before-photo`). Review form: before/after PhotoSlots (`POST /api/review-photos`, `POST /api/reviews/lookup` pre-fills the saved before photo). Camera permission flow with Open Settings.
 - Approving a review (first time) issues a single-use RVWxxxxxx code = 25% of the current single-box price (one box), emailed to the buyer; shown in admin.
 - Review request email loop: 21 days after each order, once, skipped if already reviewed (`review_request_status` on order).
+
+## Iteration 10 (2026-06)
+- Team portal at /admin (no public footer link), password `smoothscar`. Tabs: Orders, Reviews, Partners, Pricing, Products.
+- Products (`backend/products.py`): BioRNA packs seeded from biorna.sg/shop (BioRNA-K $50, Starter $228, Standard $856, Gift Girl/Boy $1,998). Admin can add, edit, hide or remove packs. Landing shows "More BioRNA packs" (`ProductPacks.tsx`); checkout supports plan=product&product=<id>.
+- Progress photos: email (and phone alert when reminders are on) at weeks 1 and 2; the week-3 review request also asks for a progress photo and sends a phone alert. A transient email failure is retried. `/progress` page with Before / Week 1–3 slots.
+- New-review alert email to REVIEW_ALERT_EMAIL=info@smoothscar.com (no MX yet, so it won't arrive).
+- Footer: info@smoothscar.com plus LinkedIn, Facebook, Instagram, X (Twitter) and YouTube links. These are placeholder search URLs in `content.ts` SOCIAL_LINKS until the real profile URLs are given.
+- Backlog: product image upload in admin UI (endpoint exists), week-3 photo reuse on the review form, real social URLs, MX records for smoothscar.com.
 - Iteration 9 fixes: random per-order photo_token (returned only on order creation and via review lookup; order page uses ?t=); admin images use a 1-hour signed view token (GET /api/admin/view-token) instead of the passcode; one review code per review (unique index on reward_codes.review_id), reward email sent in the background; the review form clears photos when the order details change and blocks submit while uploading; no upscaling of small images.

@@ -28,6 +28,7 @@ from admin import build_router as build_admin_router, check_admin  # noqa: E402
 from pricing import build_plans, get_prices  # noqa: E402
 from reviews import build_router as build_reviews_router, review_request_loop  # noqa: E402
 from storage import init_storage  # noqa: E402
+from products import build_router as build_products_router, get_product, seed_products  # noqa: E402
 
 client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = client[os.environ['DB_NAME']]
@@ -69,7 +70,8 @@ class Customer(BaseModel):
 
 
 class OrderCreate(BaseModel):
-    plan: Literal["one_time", "subscribe"]
+    plan: Literal["one_time", "subscribe", "product"]
+    product_id: Optional[str] = Field(default=None, max_length=40)
     quantity: int = Field(ge=1, le=100)
     payment_method: Literal["apple_pay", "google_pay", "card"]
     customer: Customer
@@ -149,7 +151,14 @@ async def send_and_record(collection: str, doc_id: str, **kwargs):
 @api_router.post("/orders", response_model=Order, response_model_by_alias=False)
 async def create_order(payload: OrderCreate, request: Request, background: BackgroundTasks):
     plan_prices = await get_prices(db)
-    plan = build_plans(plan_prices)[payload.plan]
+    if payload.plan == "product":
+        if not payload.product_id:
+            raise HTTPException(400, "Choose a product")
+        product = await get_product(db, payload.product_id)
+        plan = {"name": f"{product['name']} ({product['patches']} patch{'es' if product['patches'] > 1 else ''}/box)",
+                "unit_price": product["price"], "min_qty": 1, "max_qty": 10, "interval": None, "allowed_qty": None}
+    else:
+        plan = build_plans(plan_prices)[payload.plan]
     if payload.quantity < plan["min_qty"] or payload.quantity > plan["max_qty"]:
         raise HTTPException(400, f"Quantity must be between {plan['min_qty']} and {plan['max_qty']}")
     if plan["allowed_qty"] and payload.quantity not in plan["allowed_qty"]:
@@ -192,6 +201,7 @@ async def create_order(payload: OrderCreate, request: Request, background: Backg
     try:
         signed_in = await get_current_user(db, request, required=False)
         res = await db.orders.insert_one({**order.to_mongo(), "email_key": customer_key,
+                                          **({"product_id": payload.product_id} if payload.plan == "product" else {}),
                                           **({"user_id": signed_in["user_id"]} if signed_in else {})})
     except Exception:
         if kind in ("reward", "review"):
@@ -361,6 +371,7 @@ app.include_router(build_auth_router(db))
 app.include_router(build_autoship_router(db))
 app.include_router(build_admin_router(db, client_ip))
 app.include_router(build_reviews_router(db, client_ip, email_key))
+app.include_router(build_products_router(db, client_ip))
 
 app.add_middleware(
     CORSMiddleware,
@@ -391,6 +402,7 @@ async def ensure_indexes():
     await ensure_auth_indexes(db)
     asyncio.create_task(reminder_loop(db))
     asyncio.create_task(review_request_loop(db))
+    await seed_products(db)
     await db.review_photos.create_index("order_id")
     try:
         await asyncio.to_thread(init_storage)

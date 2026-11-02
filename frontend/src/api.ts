@@ -37,6 +37,9 @@ export const setOnUnauthorized = (fn: (() => void) | null) => {
 };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!process.env.EXPO_PUBLIC_BACKEND_URL) {
+    throw new Error("Service unavailable: backend URL is not configured.");
+  }
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: { "Content-Type": "application/json", ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },

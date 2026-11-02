@@ -1,113 +1,78 @@
-import { useQuery } from "@tanstack/react-query";
-import Head from "expo-router/head";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { useRef, useState } from "react";
-import { ScrollView, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { Text, View } from "react-native";
 
-import { Agitation } from "@/src/components/Agitation";
-import { checkCode } from "@/src/api";
-import { CheckoutWidget, Selection } from "@/src/components/CheckoutWidget";
-import { Evidence } from "@/src/components/Evidence";
-import { Footer } from "@/src/components/Footer";
-import { Hero } from "@/src/components/Hero";
-import { ProductPacks } from "@/src/components/ProductPacks";
-import { Reviews } from "@/src/components/Reviews";
-import { StickyCTA, STICKY_HEIGHT } from "@/src/components/StickyCTA";
-import { Testimonials } from "@/src/components/Testimonials";
-import { TrustInfo } from "@/src/components/TrustInfo";
-import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
+import { CATEGORIES, getProduct, PRODUCTS } from "@/src/catalog";
+import { Button, HowItWorks, HowToUse, ProductGrid, Section, STORE_MAX, StoreScreen } from "@/src/components/Store";
+import { fonts, radius, space } from "@/src/fonts";
 import { makeStyles } from "@/src/theme";
 
-type Anchor = "evidence" | "buy" | "info";
-
-export default function Landing() {
+export default function Home() {
   const styles = useStyles();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const scrollRef = useRef<ScrollView>(null);
-  const anchors = useRef<Record<Anchor, number>>({ evidence: 0, buy: 0, info: 0 });
-  const [selection, setSelection] = useState<Selection>({ plan: "one_time", qty: 2 });
-  const [hideSticky, setHideSticky] = useState(false);
-  const { code } = useLocalSearchParams<{ code?: string }>();
-  const refCode = typeof code === "string" ? code.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12) : "";
-  const { data: refInfo } = useQuery({ queryKey: ["code", refCode], queryFn: () => checkCode(refCode), enabled: !!refCode, retry: false });
-
-  const scrollTo = (k: Anchor) => scrollRef.current?.scrollTo({ y: Math.max(anchors.current[k] - 12, 0), animated: true });
-  const mark = (k: Anchor) => (e: { nativeEvent: { layout: { y: number } } }) => {
-    anchors.current[k] = e.nativeEvent.layout.y;
-  };
-
+  const original = getProduct("antiscar-original")!;
   return (
-    <View style={styles.root} testID="landing-screen">
-      <Head>
-        <title>BioRNA Antiscar — Steroid-free Micro-Tips Scar Patch | Singapore</title>
-        <meta
-          name="description"
-          content="BioRNA Antiscar: steroid-free, painless micro-tips patch for C-section, keloid and hypertrophic scars. 95% scar volume reduction after 60 days. Annals of the Academy of Medicine, Singapore 2024;53:113-6."
-        />
-      </Head>
-      <ScrollView
-        ref={scrollRef}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-        testID="landing-scroll"
-        scrollEventThrottle={100}
-        onScroll={(e) => {
-          const y = e.nativeEvent.contentOffset.y;
-          const h = e.nativeEvent.layoutMeasurement.height;
-          const { buy, info } = anchors.current;
-          const overWidget = buy > 0 && y + h > buy + 120 && y < info - 120;
-          if (overWidget !== hideSticky) setHideSticky(overWidget);
-        }}
-      >
-        <View role="main" style={styles.column}>
-          <Hero />
-          {refInfo ? (
-            <View style={styles.refBanner} testID="referral-banner">
-              <Text style={styles.refText}>
-                {refInfo.kind === "referral" ? "A friend sent you " : "Your reward: "}
-                <Text style={styles.refStrong}>{refInfo.kind === "referral" ? "$25 off" : refInfo.label}</Text>
-                {refInfo.kind === "referral" ? " your first order" : ""} — code {refInfo.code} will be applied automatically at checkout.
+    <StoreScreen
+      title="BioRNA Antiscar & BioRNA-C | Micro-Tip Scar Care Patches"
+      description="Discover BioRNA's dissolvable micro-tip patch technology, designed to help reduce the appearance of scars."
+      testID="landing-screen"
+    >
+      <View style={styles.hero} testID="hero-section">
+        <View style={styles.heroInner}>
+          <View style={styles.heroCopy}>
+            <Text style={styles.eyebrow}>BioRNA Antiscar · Original Blue Box</Text>
+            <Text role="heading" aria-level={1} style={styles.h1} testID="hero-headline">
+              Advanced Scar Care, Made Simple.
+            </Text>
+            <Text style={styles.sub}>{"Discover BioRNA's dissolvable micro-tip patch technology, designed to help reduce the appearance of scars."}</Text>
+            <View style={styles.ctas}>
+              <Button label="Shop BioRNA" onPress={() => router.push("/shop")} testID="hero-shop" />
+              <Button label="How It Works" variant="secondary" onPress={() => router.push("/science")} testID="hero-how" />
+            </View>
+          </View>
+          <View style={styles.heroImgWrap}>
+            <Image source={original.image} style={styles.heroImg} contentFit="contain" accessibilityLabel="BioRNA Antiscar original blue box, 7 patches" />
+          </View>
+        </View>
+      </View>
+
+      <Section eyebrow="Shop by category" title="Find your BioRNA.">
+        <View style={styles.cats}>
+          {CATEGORIES.map((c) => (
+            <View key={c.id} style={styles.cat}>
+              <Text style={styles.catTitle}>{c.title}</Text>
+              <Text style={styles.catBody}>{c.body}</Text>
+              <Text style={styles.catLink} onPress={() => router.push(c.href as never)}>
+                Explore →
               </Text>
             </View>
-          ) : null}
-          <Agitation />
-          <View onLayout={mark("evidence")}>
-            <Evidence />
-          </View>
-          <Testimonials />
-          <Reviews />
-          <View onLayout={mark("buy")}>
-            <CheckoutWidget
-              value={selection}
-              onChange={setSelection}
-              onApply={() => router.push("/clinic-apply")}
-              onProceed={() =>
-                router.push({
-                  pathname: "/checkout",
-                  params: { plan: selection.plan, qty: String(selection.qty), ...(refCode ? { code: refCode } : {}) },
-                })
-              }
-            />
-          </View>
-          <View onLayout={mark("info")}>
-            <ProductPacks />
-            <TrustInfo />
-          </View>
-          <Footer onNavigate={scrollTo} onApply={() => router.push("/clinic-apply")} bottomPad={STICKY_HEIGHT + insets.bottom + 24} />
+          ))}
         </View>
-      </ScrollView>
-      {hideSticky ? null : <StickyCTA onPress={() => scrollTo("buy")} />}
-    </View>
+      </Section>
+
+      <Section eyebrow="The collection" title="Original first, then BioRNA-C." tone="soft">
+        <ProductGrid products={PRODUCTS} />
+      </Section>
+
+      <HowItWorks />
+      <HowToUse />
+    </StoreScreen>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  root: { flex: 1, backgroundColor: c.surfaceSecondary },
-  scroll: { flexGrow: 1 },
-  column: { width: "100%", maxWidth: MAX_WIDTH, alignSelf: "center", backgroundColor: c.surface },
-  refBanner: { marginHorizontal: space.xl, marginBottom: space.xl, padding: space.lg, borderRadius: radius.md, backgroundColor: c.brandTertiary },
-  refText: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, color: c.onBrandTertiary },
-  refStrong: { fontFamily: fonts.black },
+  hero: { backgroundColor: c.brandTertiary, paddingHorizontal: space.xl, paddingVertical: space.xxxl },
+  heroInner: { width: "100%", maxWidth: STORE_MAX, alignSelf: "center", flexDirection: "row", flexWrap: "wrap-reverse", alignItems: "center", gap: space.xxl },
+  heroCopy: { flexGrow: 1, flexBasis: 320 },
+  eyebrow: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 1.4, textTransform: "uppercase", color: c.brandPrimary, marginBottom: space.md },
+  h1: { fontFamily: fonts.black, fontSize: 42, lineHeight: 46, letterSpacing: -1.2, color: c.brandSecondary },
+  sub: { fontFamily: fonts.regular, fontSize: 18, lineHeight: 27, color: c.onSurfaceTertiary, marginTop: space.lg, maxWidth: 520 },
+  ctas: { flexDirection: "row", flexWrap: "wrap", gap: space.md, marginTop: space.xl },
+  heroImgWrap: { flexGrow: 1, flexBasis: 300, height: 340, borderRadius: radius.lg, backgroundColor: c.surface, padding: space.lg },
+  heroImg: { width: "100%", height: "100%" },
+  cats: { flexDirection: "row", flexWrap: "wrap", gap: space.md },
+  cat: { flexGrow: 1, flexBasis: 240, padding: space.xl, borderRadius: radius.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surfaceSecondary, gap: space.xs },
+  catTitle: { fontFamily: fonts.bold, fontSize: 17, color: c.brandSecondary },
+  catBody: { fontFamily: fonts.regular, fontSize: 14, color: c.muted },
+  catLink: { fontFamily: fonts.bold, fontSize: 14, color: c.brandPrimary, marginTop: space.sm, paddingVertical: space.xs },
 }));

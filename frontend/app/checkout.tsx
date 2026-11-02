@@ -1,13 +1,14 @@
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppleLogo, ArrowLeft, CreditCard, GoogleLogo, Lock, Minus, Plus } from "phosphor-react-native";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Text, TextInput, View } from "react-native";
 import { KeyboardAwareScrollView, KeyboardStickyView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { createOrder, CodePreview } from "@/src/api";
 import { PromoCodeField } from "@/src/components/PromoCodeField";
+import { useAuth } from "@/src/auth";
 import { CLINIC_TIERS, formatSGD, PlanId, PRICING, SUB_TIERS, unitPriceFor } from "@/src/content";
 import { fonts, MAX_WIDTH, radius, space } from "@/src/fonts";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -38,7 +39,12 @@ export default function Checkout() {
     return q >= 1 && q <= MAX_QTY[initialPlan] ? q : 1;
   });
   const [pay, setPay] = useState<Pay>(Platform.OS === "android" ? "google_pay" : "apple_pay");
-  const [form, setForm] = useState<Record<FieldKey, string>>({ full_name: "", email: "", phone: "", address: "", postal_code: "", clinic_name: "" });
+  const { user } = useAuth();
+  const [form, setForm] = useState<Record<FieldKey, string>>({ full_name: user?.name ?? "", email: user?.email ?? "", phone: "", address: "", postal_code: "", clinic_name: "" });
+  useEffect(() => {
+    if (!user) return;
+    setForm((s) => ({ ...s, full_name: s.full_name || user.name || "", email: s.email || user.email || "" }));
+  }, [user]);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
   const [submitError, setSubmitError] = useState("");
   const [loading, setLoading] = useState(false);

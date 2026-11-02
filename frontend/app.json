@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.emergent.biornacscar.bqs75v"
+      "bundleIdentifier": "com.emergent.biornacscar.bqs75v",
+      "usesAppleSignIn": true
     },
     "android": {
       "adaptiveIcon": {
@@ -47,7 +48,8 @@
         {
           "color": "#004B87"
         }
-      ]
+      ],
+      "expo-apple-authentication"
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,0 +1,42 @@
+{
+  "summary": "Tested customer accounts on the backend and the frontend (mobile 375x667). Backend: 14/14 pytest pass. Covered /auth/me (seeded, missing, bad and expired tokens), /auth/session and /auth/apple with bad input (401, including a forged HS256 JWT), and logout deleting the session. /me/orders and /me/referral return 401 without Bearer. A signed-in POST /orders stores user_id; a bad Bearer falls back to a guest order. /me/orders includes the user_id order and a case-insensitive exact-email order, and excludes alias (+other), dot-variant and guest orders. Frontend: hero-account-button opens /account. When signed out it shows account-sign-in with the Google button, and the Apple button is not rendered on web. Signed in via localStorage, it shows account-panel with name, email, Auto-Ship summary and My orders (an order placed in the UI appears and opens /order/:id). Sign out returns to account-sign-in and clears the token. A stale token falls back to sign-in. Guest checkout reaches order confirmation. One bug: checkout pre-fill works when you navigate in-app, but it is EMPTY on a cold load of /checkout because auth is still loading. One security issue: Apple sign-in trusts a client-supplied email. Payment is demo (MOCKED).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "POST /api/auth/apple", "issue": "SECURITY: token_email = claims.email OR body.email. When the Apple token has no email claim, the email from the request body (not verified) is used. It is used to link to an existing Google account with that email (account takeover) or stored on a new account, and then /me/orders returns every order placed with that email (names, addresses, phones). Only trust claims['email'] (optionally require email_verified) and never link from body.email. Reference: /app/backend/auth.py:95-108", "priority": "HIGH"}
+    ],
+    "minor": [
+      {"endpoint": "POST /api/auth/session", "issue": "An httpx network or timeout error from the Emergent session endpoint is not caught, so it returns a 500 instead of a 401/502. Reference: /app/backend/auth.py:69-72"},
+      {"endpoint": "GET /api/me/referral", "issue": "The seeded user (delivered+auth@resend.dev) always gets null. Their email key delivered@resend.dev is already owned by delivered+ref0@resend.dev, and the lookup requires an exact owner_email match. So no referral card shows, even though orders placed with that email return that referral code in the confirmation. This is by design for alias privacy, but the confirmation and the account disagree."},
+      {"endpoint": "GET /api/me/orders", "issue": "Matches customer.email with a case-insensitive regex, which cannot use an index (collection scan). Consider storing a lowercased email field and indexing it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Checkout pre-fill", "issue": "useState({full_name: user?.name, email: user?.email}) only reads user on the first render. On a cold load or deep link to /checkout (e.g. a referral link while signed in), AuthProvider is still loading, so input-full_name and input-email stay empty. Verified: in-app nav pre-fills 'Test Customer' / delivered+auth@resend.dev; a direct /checkout load gives ''. Fix: add a useEffect on user that fills empty fields. Reference: /app/frontend/app/checkout.tsx:42-43", "testID": "input-full_name, input-email", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Web Google sign-in return", "issue": "If exchangeGoogleSession fails on web (expired or reused session_id), the error is swallowed by catch -> clear(). The user lands on the sign-in panel with no error message. Reference: /app/frontend/src/auth.tsx:63-72, 91-92", "affected_testIDs": ["account-sign-in-error"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/backend/tests/test_auth_accounts.py", "/app/test_reports/pytest/pytest_auth_iter5.xml"],
+  "action_items": [
+    "HIGH: auth.py apple_sign_in. Use only claims['email'] (check email_verified) for account linking and storing. Never link to an existing account using body.email.",
+    "Checkout: when the user becomes available after mount, fill empty full_name and email (useEffect on user).",
+    "auth.tsx web: show an error when the session_id exchange fails, instead of silently clearing.",
+    "auth.py /auth/session: wrap the httpx call in try/except and return a 401/502 on network errors."
+  ],
+  "critical_code_review_comments": [
+    "auth.py:95 trusts client body.email when the identity token has no email claim (see critical issue).",
+    "checkout.tsx:43 initialises the form once from the auth context, which is a race with AuthProvider loading.",
+    "No deprecated Expo packages (expo-av, expo-barcode-scanner, expo-background-fetch) found. The Apple button is correctly gated on Platform.OS === 'ios' && isAvailableAsync."
+  ],
+  "updated_files": ["/app/backend/tests/test_auth_accounts.py"],
+  "success_rate": {"backend": "100% (14/14)", "frontend": "90% (all flows pass except cold-load checkout pre-fill)"},
+  "seed_data_creation": "None kept. Test orders, referrals and TEST sessions were deleted. The seeded session st_test_session_0001 was deleted by the UI sign-out test and re-seeded via mongosh (expires 7 days from 2026-11-02).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Signing out in the UI with st_test_session_0001 DELETES it. Re-seed afterwards: db.user_sessions.updateOne({session_token:'st_test_session_0001'},{$set:{user_id:'user_test0001',created_at:new Date(),expires_at:new Date(Date.now()+7*864e5)}},{upsert:true}). Web token: localStorage 'biorna_session_token' = JSON.stringify('st_test_session_0001'). The seeded email's key delivered@resend.dev is shared with earlier delivered+* tests, and the 5 orders/hour per email-key limit applies; restart the backend to reset it. The landing CTA to checkout is proceed-checkout-button.",
+  "rca_of_issue": "Cold-load pre-fill: AuthProvider sets loading=true, then calls getMe asynchronously. Checkout mounts at the same time, and its useState initialiser runs with user=null, so later context updates never reach the form state."
+}

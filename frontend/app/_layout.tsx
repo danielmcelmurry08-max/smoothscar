@@ -10,6 +10,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { ErrorBoundary } from "@/src/components/error-boundary";
+import { AuthProvider } from "@/src/auth";
 import { PushNudge } from "@/src/components/PushNudge";
 import { fontAssets } from "@/src/fonts";
 import { registerForPush } from "@/src/push";
@@ -99,12 +100,14 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
+          <QueryClientProvider client={queryClient}>
+          <AuthProvider>
           <KeyboardProvider>
             <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false }} />
             <PushNudge visible={showNudge} onOpenSettings={() => closeNudge(true)} onLater={() => closeNudge(false)} />
           </KeyboardProvider>
+          </AuthProvider>
         </QueryClientProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>

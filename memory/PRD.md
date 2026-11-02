@@ -56,3 +56,10 @@ Premium medical-cosmetic D2C single-product landing page (mobile web first) for 
 - Team admin screen `/admin` (passcode ADMIN_PASSCODE in backend .env; see test_credentials.md) lists provider applications, because info@smoothscar.com bounces.
 - Testing: iteration 4 passed 9/9 new backend tests and every frontend flow. Fixes made afterwards: auto-apply of `?code=`, banner shows only for valid codes, honest "copied" state, duplicate-key and parallel-claim race fixes, admin email chip no longer cut off. Re-checked so far: the parallel-claim curl test (passed) and the reminder unit tests (7/7). The auto-apply screenshot check was still running when this was written. 10 older tests from iterations 1–3 are stale after the pricing and form changes and still need updating.
 - Pending from the user: google-services.json (Android push)
+
+## Iteration 5 (2026-06)
+- Optional customer accounts (`backend/auth.py`): Emergent managed Google sign-in (all platforms) and Sign in with Apple (iOS only; Apple token checked against Apple's keys for APPLE_AUDIENCES; only Apple-verified emails are trusted). Bearer sessions last 7 days, stored with the app's secure storage helpers.
+- `/account`: sign-in panel, or profile with Auto-Ship summary, referral card, free-box codes, My orders and sign out. Opened from the account icon on the hero.
+- Orders placed while signed in are linked to the user. My orders also shows orders placed with the exact same email. Checkout pre-fills name and email.
+- Testing: iteration 5 passed 14/14 backend tests and every UI flow. The Apple email takeover fix and the direct-load checkout pre-fill fix were re-checked: pytest 14/14 and a pre-fill check on a direct `/checkout` load. The Google sign-in error message and the 502 for network errors were not re-checked.
+- Push notifications: already integrated in iteration 3 (re-request needed no changes)

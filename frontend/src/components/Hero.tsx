@@ -1,7 +1,9 @@
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Medal, Needle, ShieldCheck } from "phosphor-react-native";
-import { Text, View } from "react-native";
+import { Medal, Needle, ShieldCheck, UserCircle } from "phosphor-react-native";
+import { Pressable, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { useAuth } from "../auth";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -13,6 +15,8 @@ export function Hero() {
   const styles = useStyles();
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { user } = useAuth();
   return (
     <View role="banner" style={styles.wrap} testID="hero-section">
       <View style={styles.imageWrap} role="img" aria-label="Confident mother after C-section recovery">
@@ -22,9 +26,14 @@ export function Hero() {
           <Text style={styles.logo} testID="brand-logo">
             BioRNA<Text style={styles.logoLight}> Antiscar</Text>
           </Text>
-          <View style={styles.award}>
-            <Medal size={12} color={colors.onBrandTertiary} weight="fill" />
-            <Text style={styles.awardText}>Award-winning</Text>
+          <View style={styles.topRight}>
+            <View style={styles.award}>
+              <Medal size={12} color={colors.onBrandTertiary} weight="fill" />
+              <Text style={styles.awardText}>Award-winning</Text>
+            </View>
+            <Pressable testID="hero-account-button" onPress={() => router.push("/account")} style={styles.accountBtn} accessibilityLabel={user ? "My account" : "Sign in"}>
+              <UserCircle size={26} color={colors.onSurfaceInverse} weight={user ? "fill" : "regular"} />
+            </Pressable>
           </View>
         </View>
         <Animated.View entering={FadeInDown.duration(600).delay(100)} style={styles.copy}>
@@ -77,6 +86,8 @@ const useStyles = makeStyles((c) => ({
   },
   logo: { fontFamily: fonts.black, fontSize: 20, color: c.onSurfaceInverse, letterSpacing: -0.4 },
   logoLight: { fontFamily: fonts.regular },
+  topRight: { flexDirection: "row", alignItems: "center", gap: space.xs },
+  accountBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   award: {
     flexDirection: "row",
     alignItems: "center",

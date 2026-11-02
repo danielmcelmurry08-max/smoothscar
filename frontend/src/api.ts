@@ -24,12 +24,22 @@ export type Order = {
   reminders_enabled?: boolean;
 };
 
+let authToken: string | null = null;
+export const setAuthToken = (t: string | null) => {
+  authToken = t;
+};
+let onUnauthorized: (() => void) | null = null;
+export const setOnUnauthorized = (fn: (() => void) | null) => {
+  onUnauthorized = fn;
+};
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}) },
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && authToken && (path.startsWith("/me") || path.startsWith("/auth/me"))) onUnauthorized?.();
   if (!res.ok) {
     const detail = (data as any)?.detail;
     throw new Error(typeof detail === "string" ? detail : "Please check your details and try again.");
@@ -42,6 +52,15 @@ export type CodePreview = { code: string; kind: "referral" | "reward"; label: st
 export const checkCode = (code: string) => request<CodePreview>(`/codes/${encodeURIComponent(code)}`);
 export type ReferralStatus = { code: string; successful_count: number; friends_to_next_reward: number; rewards_earned: number; friend_discount: number; friends_per_reward: number };
 export const getReferral = (code: string) => request<ReferralStatus>(`/referrals/${encodeURIComponent(code)}`);
+export type User = { user_id: string; email: string | null; name: string | null; picture: string | null; provider: string };
+export type AuthResponse = { session_token: string; user: User };
+export const exchangeGoogleSession = (session_id: string) => request<AuthResponse>("/auth/session", { method: "POST", body: JSON.stringify({ session_id }) });
+export const appleSignIn = (body: { identity_token: string; full_name: string | null; email: string | null }) =>
+  request<AuthResponse>("/auth/apple", { method: "POST", body: JSON.stringify(body) });
+export const getMe = () => request<User>("/auth/me");
+export const logoutApi = () => request<{ ok: boolean }>("/auth/logout", { method: "POST" });
+export const getMyOrders = () => request<Order[]>("/me/orders");
+export const getMyReferral = () => request<(ReferralStatus & { reward_codes: { code: string; used: boolean }[] }) | null>("/me/referral");
 export type AdminApplication = {
   id: string; clinic_name: string; email: string; phone: string; credentials: string | null; contact_name: string | null; role: string | null;
   location: string | null; practice_type: string | null; monthly_volume: string | null; message: string | null; created_at: string; email_status: string | null;

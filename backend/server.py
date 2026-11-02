@@ -21,6 +21,8 @@ from email_service import referral_reward_email  # noqa: E402
 from referrals import apply_code, ensure_referral_code, preview_code, record_referral, referral_status, release_claim, release_reward  # noqa: E402
 import asyncio  # noqa: E402
 import secrets  # noqa: E402
+import re  # noqa: E402
+from auth import build_router as build_auth_router, ensure_auth_indexes, get_current_user  # noqa: E402
 
 ADMIN_PASSCODE = os.environ["ADMIN_PASSCODE"]
 
@@ -186,7 +188,9 @@ async def create_order(payload: OrderCreate, request: Request, background: Backg
         created_at=now.isoformat(),
     )
     try:
-        res = await db.orders.insert_one({**order.to_mongo(), "email_key": customer_key})
+        signed_in = await get_current_user(db, request, required=False)
+        res = await db.orders.insert_one({**order.to_mongo(), "email_key": customer_key,
+                                          **({"user_id": signed_in["user_id"]} if signed_in else {})})
     except Exception:
         if kind == "reward":
             await release_reward(db, applied)
@@ -240,6 +244,30 @@ async def admin_applications(request: Request):
     docs = await db.clinic_applications.find({}).sort("_id", -1).limit(200).to_list(200)
     fields = list(ClinicApplicationCreate.model_fields) + ["status", "created_at", "email_status"]
     return [{"id": str(d["_id"]), **{f: d.get(f) for f in fields}} for d in docs]
+
+
+@api_router.get("/me/orders", response_model=list[Order], response_model_by_alias=False)
+async def my_orders(request: Request):
+    user = await get_current_user(db, request)
+    q = [{"user_id": user["user_id"]}]
+    if user.get("email"):
+        q.append({"customer.email": {"$regex": f"^{re.escape(user['email'])}$", "$options": "i"}})
+    docs = await db.orders.find({"$or": q}).sort("_id", -1).limit(50).to_list(50)
+    return [Order.from_mongo(d) for d in docs]
+
+
+@api_router.get("/me/referral")
+async def my_referral(request: Request):
+    user = await get_current_user(db, request)
+    if not user.get("email"):
+        return None
+    doc = await db.referrals.find_one({"owner_key": email_key(user["email"]),
+                                       "owner_email": {"$regex": f"^{re.escape(user['email'])}$", "$options": "i"}})
+    if not doc:
+        return None
+    status = await referral_status(db, doc["code"])
+    rewards = await db.reward_codes.find({"owner_key": doc["owner_key"]}, {"_id": 0, "code": 1, "used": 1}).to_list(50)
+    return {**status, "reward_codes": rewards}
 
 
 class ClinicApplicationCreate(BaseModel):
@@ -332,6 +360,7 @@ async def disable_reminders(order_id: str):
 
 
 app.include_router(api_router)
+app.include_router(build_auth_router(db))
 
 app.add_middleware(
     CORSMiddleware,
@@ -356,6 +385,7 @@ async def ensure_indexes():
     await db.referrals.create_index("owner_key", unique=True)
     await db.reward_codes.create_index("code", unique=True)
     await db.referral_claims.create_index("customer_key", unique=True)
+    await ensure_auth_indexes(db)
     asyncio.create_task(reminder_loop(db))
 
 

@@ -21,3 +21,12 @@
 ## Important limitation
 
 Deleting a secret from the latest version of a file does not remove it from earlier Git commits. Rotate first. Rewrite Git history only after making a secure backup and coordinating with every collaborator who may have cloned the repository.
+
+
+## Additional source-review findings
+
+These are code-review findings, not proof of an exploit in a deployed environment:
+
+- `GET /api/orders/{order_id}` looks up an order by MongoDB ObjectId and returns the public order model. The model clears the photo token, but still includes the customer object and order details. Before launch, replace this with an authenticated customer route or a high-entropy, scoped, expiring receipt token, and return only the minimum fields needed by the receipt screen.
+- CORS is configured with `allow_origins=["*"]` and `allow_credentials=True`. Restrict origins to the actual production website and approved development origins. Re-test authentication and admin flows after changing it.
+- Admin access is a shared passcode sent in a request header. Rotate it, keep it server-side, and consider replacing it with named admin accounts, MFA and audit logging before production.

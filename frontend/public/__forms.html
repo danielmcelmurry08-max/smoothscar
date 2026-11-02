@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Forms</title></head><body>
+<!-- Static Netlify Forms definitions for the provider portal. Keep field names in sync with src/providerForms.ts. -->
+<form name="provider-partner" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input type="hidden" name="form-name" value="provider-partner" />
+  <input type="hidden" name="subject" value="New %{formName} inquiry — SmoothScar" />
+  <input name="bot-field" />
+  <input name="full_name" type="text" />
+  <input name="professional_title" type="text" />
+  <input name="practice_name" type="text" />
+  <input name="email" type="email" />
+  <input name="phone" type="text" />
+  <input name="city" type="text" />
+  <input name="state" type="text" />
+  <input name="provider_type" type="text" />
+  <input name="website" type="text" />
+  <input name="monthly_patient_volume" type="text" />
+  <textarea name="comments"></textarea>
+  <input name="primary_interest" type="text" />
+  <input name="consent" type="checkbox" value="yes" />
+</form>
+<form name="sample-request" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input type="hidden" name="form-name" value="sample-request" />
+  <input type="hidden" name="subject" value="New %{formName} inquiry — SmoothScar" />
+  <input name="bot-field" />
+  <input name="contact_name" type="text" />
+  <input name="practice_name" type="text" />
+  <input name="email" type="email" />
+  <input name="phone" type="text" />
+  <input name="shipping_city" type="text" />
+  <input name="shipping_state" type="text" />
+  <input name="provider_type" type="text" />
+  <input name="product_interest" type="text" />
+  <input name="monthly_usage" type="text" />
+  <input name="evaluation_setting" type="text" />
+  <textarea name="comments"></textarea>
+  <input name="consent" type="checkbox" value="yes" />
+</form>
+<form name="wholesale-inquiry" method="POST" data-netlify="true" netlify-honeypot="bot-field" hidden>
+  <input type="hidden" name="form-name" value="wholesale-inquiry" />
+  <input type="hidden" name="subject" value="New %{formName} inquiry — SmoothScar" />
+  <input name="bot-field" />
+  <input name="contact_name" type="text" />
+  <input name="company" type="text" />
+  <input name="email" type="email" />
+  <input name="phone" type="text" />
+  <input name="state" type="text" />
+  <input name="products_of_interest" type="text" />
+  <input name="order_volume" type="text" />
+  <input name="website" type="text" />
+  <input name="locations" type="text" />
+  <textarea name="comments"></textarea>
+  <input name="business_type" type="text" />
+  <input name="consent" type="checkbox" value="yes" />
+</form>
+</body></html>

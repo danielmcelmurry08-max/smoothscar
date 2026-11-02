@@ -17,6 +17,15 @@ const NAV = [
   { href: "/shop", label: "Shop" },
   { href: "/biorna-c", label: "BioRNA-C" },
   { href: "/science", label: "Science" },
+  { href: "/providers", label: "For Providers" },
+] as const;
+
+const PRO_LINKS = [
+  { href: "/providers", label: "Provider Portal" },
+  { href: "/provider-resources", label: "Product Brochures" },
+  { href: "/providers/partner", label: "Partnership Inquiry" },
+  { href: "/providers/samples", label: "Sample Request" },
+  { href: "/providers/wholesale", label: "Wholesale Inquiry" },
 ] as const;
 
 export function StoreScreen({ title, description, children, testID }: { title: string; description: string; children: ReactNode; testID?: string }) {
@@ -66,6 +75,17 @@ export function StoreScreen({ title, description, children, testID }: { title: s
               Made by RNAscence Biotechnology, Singapore. Results vary between people. These products are not intended to diagnose, treat, cure or prevent any disease. Online checkout is not
               yet available.
             </Text>
+            <Text style={styles.footerBrand}>Healthcare Professionals</Text>
+            <View style={styles.footerLinks}>
+              {PRO_LINKS.map((l) => (
+                <Link key={l.href} href={l.href} style={styles.footerLink}>
+                  {l.label}
+                </Link>
+              ))}
+            </View>
+            <Link href="/privacy" style={styles.footerLink}>
+              Privacy Policy
+            </Link>
           </View>
         </View>
       </ScrollView>
@@ -279,7 +299,7 @@ const useStyles = makeStyles((c) => ({
   headerInner: { width: "100%", maxWidth: STORE_MAX, alignSelf: "center", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.md },
   logo: { fontFamily: fonts.black, fontSize: 20, color: c.brandSecondary, letterSpacing: -0.4 },
   logoLight: { fontFamily: fonts.regular, color: c.muted },
-  nav: { flexDirection: "row", alignItems: "center", gap: space.md },
+  nav: { flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "center", columnGap: space.md, flexShrink: 1 },
   navLink: { fontFamily: fonts.medium, fontSize: 14, color: c.onSurface, paddingVertical: space.sm },
   cartBtn: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   badge: { position: "absolute", top: 4, right: 2, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: c.brandPrimary, alignItems: "center", justifyContent: "center" },
@@ -289,6 +309,8 @@ const useStyles = makeStyles((c) => ({
   footer: { backgroundColor: c.brandSecondary, paddingTop: space.xxl, paddingHorizontal: space.xl },
   footerInner: { width: "100%", maxWidth: STORE_MAX, alignSelf: "center", gap: space.sm },
   footerBrand: { fontFamily: fonts.bold, fontSize: 15, color: c.onBrandSecondary },
+  footerLinks: { flexDirection: "row", flexWrap: "wrap", columnGap: space.lg, rowGap: space.xs },
+  footerLink: { fontFamily: fonts.medium, fontSize: 14, color: c.onBrandSecondary, textDecorationLine: "underline", paddingVertical: space.xs },
   footerText: { fontFamily: fonts.regular, fontSize: 13, lineHeight: 20, color: c.onBrandSecondary, opacity: 0.8 },
   section: { paddingVertical: space.xxxl, paddingHorizontal: space.xl },
   sectionSoft: { backgroundColor: c.brandTertiary },

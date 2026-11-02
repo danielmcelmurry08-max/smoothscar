@@ -87,6 +87,18 @@ const light = {
   border: "#E5E5EA", // hairline outline, 0.5pt or 1pt max: inputs, cards
   borderStrong: "#D1D1D6", // focus rings, selected outlines, 1.5pt max
   divider: "#E5E5EA", // subtle list separators
+
+  // ---------------------------------------------------------------------------
+  // Science & Efficacy page palette (warm, calm editorial)
+  // ---------------------------------------------------------------------------
+  cream: "#FBF9F5", // primary canvas
+  oat: "#EFECE6", // alternate section canvas
+  onCream: "#2C2A29", // warm espresso body text on cream/oat
+  slate: "#3B5249", // deep slate teal headings and emphasis
+  sage: "#8A9A86", // dividers, icon frames, diagram fills
+  sageTint: "#E3E8E1", // soft sage frame fill
+  rose: "#D8A48F", // CTA fill
+  onRose: "#2C2A29", // text on rose CTA (high contrast)
 };
 
 export type ThemeColors = typeof light;

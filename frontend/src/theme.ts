@@ -40,32 +40,32 @@ const light = {
   // Surfaces: backgrounds, from the screen down to small fills.
   // Each `on` key is the text and icon color for that background.
   // ---------------------------------------------------------------------------
-  surface: "#FFFFFF", // primary canvas, most of every screen
-  onSurface: "#1C1C1E", // text and icons on the canvas
-  surfaceSecondary: "#F5F5F7", // cards, sheets, list rows
-  onSurfaceSecondary: "#1C1C1E", // text and icons on cards, sheets, rows
-  surfaceTertiary: "#EAEAEA", // input backgrounds, chips, deepest nesting
-  onSurfaceTertiary: "#3A3A3C", // text on inputs and chips; also muted text
-  surfaceInverse: "#1C1C1E", // tooltips, snackbars, anything popping against the theme
-  onSurfaceInverse: "#FFFFFF", // text and icons on the inverse surface
-  muted: "#6E6E73", // subdued text on surface: captions, timestamps, placeholders
+  surface: "#FDFBF7", // primary canvas, most of every screen
+  onSurface: "#3D2E3A", // text and icons on the canvas
+  surfaceSecondary: "#F3ECE3", // cards, sheets, list rows
+  onSurfaceSecondary: "#3D2E3A", // text and icons on cards, sheets, rows
+  surfaceTertiary: "#E9E0D5", // input backgrounds, chips, deepest nesting
+  onSurfaceTertiary: "#4A3B47", // text on inputs and chips; also muted text
+  surfaceInverse: "#3D2E3A", // tooltips, snackbars, anything popping against the theme
+  onSurfaceInverse: "#FDFBF7", // text and icons on the inverse surface
+  muted: "#6B5A66", // subdued text on surface: captions, timestamps, placeholders
   scrim: "rgba(28,28,30,0.78)", // hero image gradient end
   scrimClear: "rgba(28,28,30,0)", // hero image gradient start
   onScrimMuted: "rgba(255,255,255,0.82)", // secondary text on hero scrim
-  glass: "rgba(255,255,255,0.82)", // sticky CTA glass container
+  glass: "rgba(253,251,247,0.9)", // sticky CTA glass container
 
   // ---------------------------------------------------------------------------
   // Brand: the identity color and the fills built from it.
   // Neutral by default; replace with the design guidelines values.
   // ---------------------------------------------------------------------------
-  brand: "#004B87", // base hue, anchor only; Primary, Secondary, Tertiary are weights of it
-  onBrand: "#FFFFFF", // text and icons placed directly on brand
-  brandPrimary: "#004B87", // primary CTA, active tab indicator, selected states
-  onBrandPrimary: "#FFFFFF", // text and icons on brandPrimary
-  brandSecondary: "#003B6D", // secondary CTA, less prominent accents
-  onBrandSecondary: "#FFFFFF", // text and icons on brandSecondary
-  brandTertiary: "#E5F0FA", // chips, tags, badges, subtle brand moments
-  onBrandTertiary: "#004B87", // text and icons on brandTertiary
+  brand: "#C3816F", // base hue, anchor only; Primary, Secondary, Tertiary are weights of it
+  onBrand: "#FDFBF7", // text and icons placed directly on brand
+  brandPrimary: "#C3816F", // primary CTA, active tab indicator, selected states
+  onBrandPrimary: "#FDFBF7", // text and icons on brandPrimary
+  brandSecondary: "#3D2E3A", // secondary CTA, less prominent accents
+  onBrandSecondary: "#FDFBF7", // text and icons on brandSecondary
+  brandTertiary: "#F3ECE3", // chips, tags, badges, subtle brand moments
+  onBrandTertiary: "#3D2E3A", // text and icons on brandTertiary
 
   // ---------------------------------------------------------------------------
   // Status: semantic only, never decorative. Fill for badges, banners and
@@ -78,15 +78,29 @@ const light = {
   onWarning: "#FFFFFF",
   error: "#D70015",
   onError: "#FFFFFF",
-  info: "#004B87",
+  info: "#3D2E3A",
   onInfo: "#FFFFFF",
 
   // ---------------------------------------------------------------------------
   // Lines
   // ---------------------------------------------------------------------------
-  border: "#E5E5EA", // hairline outline, 0.5pt or 1pt max: inputs, cards
-  borderStrong: "#D1D1D6", // focus rings, selected outlines, 1.5pt max
-  divider: "#E5E5EA", // subtle list separators
+  border: "#E6DCD0", // hairline outline, 0.5pt or 1pt max: inputs, cards
+  borderStrong: "#CBBBAA", // focus rings, selected outlines, 1.5pt max
+  divider: "#E6DCD0", // subtle list separators
+
+  // ---------------------------------------------------------------------------
+  // Site-wide warm palette aliases (alabaster, oat, sage, terracotta rose, plum)
+  // ---------------------------------------------------------------------------
+  cream: "#FDFBF7", // primary canvas
+  oat: "#F3ECE3", // alternate section canvas
+  onCream: "#3D2E3A", // warm espresso body text on cream/oat
+  slate: "#3D2E3A", // deep slate teal headings and emphasis
+  sage: "#8A9A86", // dividers, icon frames, diagram fills
+  sageTint: "#E6EAE3", // soft sage frame fill
+  rose: "#C3816F", // CTA fill
+  onRose: "#FDFBF7", // text on rose CTA; keep text >=18px bold for contrast
+  roseOutline: "#D4A392", // secondary CTA border
+  accentText: "#9A5A48", // deeper terracotta for small accent text/links (AA on alabaster and oat)
 };
 
 export type ThemeColors = typeof light;

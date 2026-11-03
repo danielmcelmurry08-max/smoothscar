@@ -11,6 +11,7 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 
 import { ErrorBoundary } from "@/src/components/error-boundary";
 import { AuthProvider } from "@/src/auth";
+import { CartProvider } from "@/src/cart";
 import { PushNudge } from "@/src/components/PushNudge";
 import { fontAssets } from "@/src/fonts";
 import { registerForPush } from "@/src/push";
@@ -102,11 +103,13 @@ export default function RootLayout() {
       <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
           <AuthProvider>
+          <CartProvider>
           <KeyboardProvider>
             <StatusBar style="dark" />
             <Stack screenOptions={{ headerShown: false }} />
             <PushNudge visible={showNudge} onOpenSettings={() => closeNudge(true)} onLater={() => closeNudge(false)} />
           </KeyboardProvider>
+          </CartProvider>
           </AuthProvider>
         </QueryClientProvider>
       </ErrorBoundary>

@@ -1,3 +1,4 @@
+import { Redirect } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { AppleLogo, ArrowLeft, CreditCard, GoogleLogo, Lock, Minus, Plus } from "phosphor-react-native";
@@ -27,7 +28,12 @@ const TIERS: Partial<Record<PlanId, number[]>> = { subscribe: SUB_TIERS };
 
 type FieldKey = "full_name" | "email" | "phone" | "address" | "postal_code";
 
-export default function Checkout() {
+// Mock-payment checkout is disabled until a real payment provider is configured.
+export default function CheckoutDisabled() {
+  return <Redirect href="/cart" />;
+}
+
+export function LegacyCheckout() {
   const styles = useStyles();
   const { colors } = useTheme();
   const router = useRouter();

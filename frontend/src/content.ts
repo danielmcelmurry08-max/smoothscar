@@ -42,35 +42,8 @@ export const STATS = [
 
 export const STUDY_NOTE = "*50 patients. Measurements made using a high-resolution 3D scanner.";
 
-export const CASES = [
-  {
-    id: "csection",
-    tab: "C-section",
-    caption: "C-section scar · Day 0 vs after 6 weeks of BioRNA",
-    quote: "“I actually feel my scar getting a little flatter.” — Patient, 10 hours/patch",
-    aspect: 2.2,
-    before: require("../assets/images/clinical/csection-before.jpg"),
-    after: require("../assets/images/clinical/csection-after.jpg"),
-  },
-  {
-    id: "keloid",
-    tab: "Knee keloid",
-    caption: "10-month-old knee keloid · Day 0 vs Day 21",
-    quote: "Almost level with the skin — no more pain, itchiness or sensitivity. Silicone patches had no effect.",
-    aspect: 0.8,
-    before: require("../assets/images/clinical/knee-keloid-before.jpg"),
-    after: require("../assets/images/clinical/knee-keloid-after.jpg"),
-  },
-  {
-    id: "wrist",
-    tab: "Wrist keloid",
-    caption: "Wrist keloid · Day 0 vs Day 7",
-    quote: "“(Colour) more like my regular skin tone, (height) less raised, (size) smaller width.” — Patient",
-    aspect: 0.75,
-    before: require("../assets/images/clinical/wrist-keloid-before.jpg"),
-    after: require("../assets/images/clinical/wrist-keloid-after.jpg"),
-  },
-];
+// Clinical case photos were removed: they come from a confidential clinician deck.
+// Approved cases now live in src/clinicalResults.ts.
 
 export const TESTIMONIALS = [
   { id: "amelia", name: "Amelia W.", scar: "Breast surgery scar", text: "A section of my scar popped up along the line. After a few uses, the uneven part flattened and is not so obvious anymore." },

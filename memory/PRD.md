@@ -80,13 +80,13 @@ Premium medical-cosmetic D2C single-product landing page (mobile web first) for 
 
 ## Iteration 8 (2026-06)
 - Partner inbox stays partner@smoothscar.com; user must add MX records (email hosting) on smoothscar.com. No alternate inbox given.
-- Review photos via Emergent Object Storage (`backend/storage.py`, EMERGENT_LLM_KEY, path biorna-antiscar/review-photos/{order_id}/uuid). `review_photos` collection; private until the review is approved (then public). Read access: public / ?order_id= owner / ?admin=passcode.
+- Review photos via Emergent Object Storage (`backend/storage.py`, EMERGENT_LLM_KEY, path biorna-antiscar/review-photos/{order_id}/uuid). `review_photos` collection; private until the review is approved (then public). Read access: public / ?order_id= owner / ?admin=[REDACTED]
 - Order page: BeforePhotoCard prompts a before photo prior to first patch (`POST /api/orders/{id}/before-photo`). Review form: before/after PhotoSlots (`POST /api/review-photos`, `POST /api/reviews/lookup` pre-fills the saved before photo). Camera permission flow with Open Settings.
 - Approving a review (first time) issues a single-use RVWxxxxxx code = 25% of the current single-box price (one box), emailed to the buyer; shown in admin.
 - Review request email loop: 21 days after each order, once, skipped if already reviewed (`review_request_status` on order).
 
 ## Iteration 10 (2026-06)
-- Team portal at /admin (no public footer link), password `smoothscar`. Tabs: Orders, Reviews, Partners, Pricing, Products.
+- Team portal at /admin (no public footer link), password `[REDACTED]`. Tabs: Orders, Reviews, Partners, Pricing, Products.
 - Products (`backend/products.py`): BioRNA packs seeded from biorna.sg/shop (BioRNA-K $50, Starter $228, Standard $856, Gift Girl/Boy $1,998). Admin can add, edit, hide or remove packs. Landing shows "More BioRNA packs" (`ProductPacks.tsx`); checkout supports plan=product&product=<id>.
 - Progress photos: email (and phone alert when reminders are on) at weeks 1 and 2; the week-3 review request also asks for a progress photo and sends a phone alert. A transient email failure is retried. `/progress` page with Before / Week 1–3 slots.
 - New-review alert email to REVIEW_ALERT_EMAIL=info@smoothscar.com (no MX yet, so it won't arrive).

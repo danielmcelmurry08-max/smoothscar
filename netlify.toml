@@ -1,0 +1,15 @@
+# Netlify builds only the Expo web frontend. FastAPI must run on a separate host.
+[build]
+  base = "frontend"
+  command = "yarn install --non-interactive && npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# This repo currently has no frontend/yarn.lock; frozen installs fail without it.
+# Expo Router client-side navigation
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
